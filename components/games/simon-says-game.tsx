@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { 
   ArrowLeft, Play, RotateCcw, Volume2, VolumeX, Zap, Clock, Flame, 
   Trophy, ShieldAlert, Shuffle, Music, Award, Sparkles, Key, Layers,
-  Compass, Repeat, Disc
+  Compass, Repeat, Disc, Binary, Cpu
 } from "lucide-react"
 
 interface SimonSaysGameProps {
@@ -16,7 +16,7 @@ interface SimonSaysGameProps {
 type GameState = "menu" | "difficulty" | "showing" | "waiting" | "game-over" | "achievements"
 type GameMode = "classic" | "reverse" | "chaos" | "speed" | "tone"
 type Difficulty = "beginner" | "standard" | "pro" | "insane"
-type PatternStyle = "random" | "mirror" | "double" | "spiral" | "harmonic" | "pingpong"
+type PatternStyle = "random" | "fibonacci" | "polyrhythm" | "knighthop" | "arpeggio" | "asymmetric"
 
 interface PadConfig {
   id: number
@@ -142,39 +142,39 @@ const patternStylesConfig: Record<PatternStyle, {
   badge: string
 }> = {
   random: {
-    name: "Pure Random",
+    name: "Adaptive Chaos",
     icon: Sparkles,
-    description: "Unpredictable random pad generation.",
+    description: "Unpredictable dynamic sequence shifts.",
     badge: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   },
-  mirror: {
-    name: "Symmetric Mirror",
-    icon: Layers,
-    description: "Opposite and diagonal pad pairings.",
-    badge: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  },
-  double: {
-    name: "Double Pulse",
-    icon: Repeat,
-    description: "Rhythmic repeating pad double-taps.",
-    badge: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  },
-  spiral: {
-    name: "Spiral Orbit",
-    icon: Disc,
-    description: "Sequential circular movement around console.",
+  fibonacci: {
+    name: "Fibonacci Spiral",
+    icon: Binary,
+    description: "Golden ratio leaps with non-linear prime offsets.",
     badge: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   },
-  harmonic: {
-    name: "Harmonic Scale",
+  polyrhythm: {
+    name: "Poly-Rhythm Sync",
+    icon: Repeat,
+    description: "Complex syncopated single/double/triple bursts.",
+    badge: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  },
+  knighthop: {
+    name: "Knight's Hop Matrix",
+    icon: Compass,
+    description: "Chess Knight diagonal leaps across pads.",
+    badge: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  },
+  arpeggio: {
+    name: "Chord Arpeggio",
     icon: Music,
-    description: "Euphonic musical interval leaps.",
+    description: "Intricate musical scale progressions & chords.",
     badge: "bg-pink-500/20 text-pink-400 border-pink-500/30",
   },
-  pingpong: {
-    name: "Ping-Pong Bounce",
-    icon: Compass,
-    description: "Alternating back-and-forth pad pairs.",
+  asymmetric: {
+    name: "Asymmetric Inversion",
+    icon: Cpu,
+    description: "Dynamic mirrored axis shifts & inversions.",
     badge: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
   },
 }
@@ -188,11 +188,10 @@ interface Achievement {
 }
 
 export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
-  // Game States
   const [gameState, setGameState] = useState<GameState>("menu")
   const [mode, setMode] = useState<GameMode>("classic")
   const [difficulty, setDifficulty] = useState<Difficulty>("standard")
-  const [patternStyle, setPatternStyle] = useState<PatternStyle>("random")
+  const [patternStyle, setPatternStyle] = useState<PatternStyle>("fibonacci")
   
   const [sequence, setSequence] = useState<number[]>([])
   const [playerSequence, setPlayerSequence] = useState<number[]>([])
@@ -203,7 +202,6 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
   const [padOrder, setPadOrder] = useState<number[]>([])
   
-  // High Scores & Achievements
   const [highScores, setHighScores] = useState<Record<string, number>>({})
   const [achievements, setAchievements] = useState<Achievement[]>([
     { id: "rookie", title: "First Sequence", description: "Reach a score of 5 in any mode", icon: "🌱", unlocked: false },
@@ -212,7 +210,7 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
     { id: "chaos_survivor", title: "Matrix Survivor", description: "Reach score 8 in Chaos Matrix", icon: "🌀", unlocked: false },
     { id: "speed_demon", title: "Lightning Reflex", description: "Reach score 10 in Speed Rush", icon: "⚡", unlocked: false },
     { id: "pitch_perfect", title: "Pitch Perfect", description: "Reach score 8 in Tone Match", icon: "🎵", unlocked: false },
-    { id: "pattern_master", title: "Pattern Virtuoso", description: "Reach score 10 using Spiral or Double Pulse pattern", icon: "🌀", unlocked: false },
+    { id: "pattern_master", title: "Quantum Memory", description: "Reach score 10 using Fibonacci Spiral or Knight's Hop", icon: "⚛️", unlocked: false },
     { id: "insane_legend", title: "Insane Legend", description: "Reach score 10 on Insane Difficulty", icon: "👑", unlocked: false },
   ])
 
@@ -220,7 +218,6 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
   const audioCtxRef = useRef<AudioContext | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Initialize Audio Context lazily
   const getAudioContext = useCallback(() => {
     if (!audioCtxRef.current) {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
@@ -234,13 +231,12 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
     return audioCtxRef.current
   }, [])
 
-  // Load High Scores & Achievements
   useEffect(() => {
     try {
-      const savedScores = localStorage.getItem("simon_says_high_scores_v3")
+      const savedScores = localStorage.getItem("simon_says_high_scores_v4")
       if (savedScores) setHighScores(JSON.parse(savedScores))
 
-      const savedAch = localStorage.getItem("simon_says_achievements_v3")
+      const savedAch = localStorage.getItem("simon_says_achievements_v4")
       if (savedAch) {
         const unlockedIds: string[] = JSON.parse(savedAch)
         setAchievements((prev) =>
@@ -252,21 +248,19 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
     }
   }, [])
 
-  // Save High Scores
   const saveHighScore = useCallback((currentScore: number) => {
     const key = `${mode}_${difficulty}_${patternStyle}`
     setHighScores((prev) => {
       const best = prev[key] || 0
       if (currentScore > best) {
         const updated = { ...prev, [key]: currentScore }
-        localStorage.setItem("simon_says_high_scores_v3", JSON.stringify(updated))
+        localStorage.setItem("simon_says_high_scores_v4", JSON.stringify(updated))
         return updated
       }
       return prev
     })
   }, [mode, difficulty, patternStyle])
 
-  // Check achievements
   const checkAchievements = useCallback((currentScore: number) => {
     setAchievements((prev) => {
       let changed = false
@@ -279,7 +273,7 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
         if (ach.id === "chaos_survivor" && mode === "chaos" && currentScore >= 8) unlock = true
         if (ach.id === "speed_demon" && mode === "speed" && currentScore >= 10) unlock = true
         if (ach.id === "pitch_perfect" && mode === "tone" && currentScore >= 8) unlock = true
-        if (ach.id === "pattern_master" && (patternStyle === "spiral" || patternStyle === "double") && currentScore >= 10) unlock = true
+        if (ach.id === "pattern_master" && (patternStyle === "fibonacci" || patternStyle === "knighthop") && currentScore >= 10) unlock = true
         if (ach.id === "insane_legend" && difficulty === "insane" && currentScore >= 10) unlock = true
 
         if (unlock) {
@@ -291,13 +285,12 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
 
       if (changed) {
         const unlockedIds = updated.filter((a) => a.unlocked).map((a) => a.id)
-        localStorage.setItem("simon_says_achievements_v3", JSON.stringify(unlockedIds))
+        localStorage.setItem("simon_says_achievements_v4", JSON.stringify(unlockedIds))
       }
       return updated
     })
   }, [mode, difficulty, patternStyle])
 
-  // Sound Engine
   const playTone = useCallback((freq: number, duration = 0.3, type: OscillatorType = "sine") => {
     if (!soundEnabled) return
     try {
@@ -311,7 +304,6 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
       osc.type = type
       osc.frequency.setValueAtTime(freq, ctx.currentTime)
 
-      // Add a subtle sub-octave for rich warmth
       subOsc.type = "sine"
       subOsc.frequency.setValueAtTime(freq / 2, ctx.currentTime)
 
@@ -370,7 +362,6 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
     }
   }, [soundEnabled, getAudioContext])
 
-  // Canvas Ambient Particles System
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -453,7 +444,6 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
     }
   }, [])
 
-  // Trigger Burst FX
   const triggerParticleBurst = useCallback((color = "#3b82f6") => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -483,7 +473,6 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
     }
   }, [])
 
-  // Get current active pads list based on difficulty
   const getPadsConfig = useCallback((): PadConfig[] => {
     const padCount = difficultyConfig[difficulty].padCount
     if (padCount === 9) return PADS_9
@@ -493,48 +482,85 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
 
   const currentPads = getPadsConfig()
 
-  // Advanced Pattern Sequence Generator
+  // Advanced Non-Linear Sequence Generator
   const generateNextPadId = useCallback((currentSeq: number[]): number => {
     const pads = getPadsConfig()
     const padsCount = pads.length
+    const n = currentSeq.length
 
-    if (currentSeq.length === 0 || patternStyle === "random") {
+    if (n === 0) {
       return Math.floor(Math.random() * padsCount)
     }
 
-    const lastPad = currentSeq[currentSeq.length - 1]
+    const lastPad = currentSeq[n - 1]
 
-    if (patternStyle === "mirror") {
-      if (padsCount === 4) return (lastPad + 2) % 4
-      if (padsCount === 6) return (lastPad + 3) % 6
-      return (8 - lastPad + padsCount) % padsCount
+    if (patternStyle === "fibonacci") {
+      // Fibonacci sequence with prime offsets
+      const fib = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144]
+      const fibStep = fib[n % fib.length]
+      const primeOffset = (n * 3 + 7) % padsCount
+      return (lastPad + fibStep + primeOffset) % padsCount
     }
 
-    if (patternStyle === "double") {
-      if (currentSeq.length % 2 === 1) return lastPad
-      return Math.floor(Math.random() * padsCount)
-    }
-
-    if (patternStyle === "spiral") {
-      return (lastPad + 1) % padsCount
-    }
-
-    if (patternStyle === "harmonic") {
-      const interval = Math.random() > 0.5 ? 2 : 3
-      return (lastPad + interval) % padsCount
-    }
-
-    if (patternStyle === "pingpong") {
-      if (currentSeq.length >= 2) {
-        return currentSeq[currentSeq.length - 2]
+    if (patternStyle === "polyrhythm") {
+      // Syncopated poly-rhythmic burst: Single -> Double -> Triple -> Burst
+      const cyclePos = n % 6
+      if (cyclePos === 1 || cyclePos === 3 || cyclePos === 4) {
+        return lastPad // Repeat pad for syncopated rhythm
       }
-      return (lastPad + 2) % padsCount
+      return (lastPad + Math.floor(Math.random() * (padsCount - 1)) + 1) % padsCount
     }
 
-    return Math.floor(Math.random() * padsCount)
+    if (patternStyle === "asymmetric") {
+      // Asymmetric axis reflection
+      if (padsCount === 4) {
+        const mirrorMap = [3, 2, 1, 0]
+        return (mirrorMap[lastPad] + (n % 2 === 0 ? 1 : 0)) % 4
+      } else if (padsCount === 6) {
+        return (padsCount - 1 - lastPad + n) % padsCount
+      } else {
+        const row = Math.floor(lastPad / 3)
+        const col = lastPad % 3
+        const nextRow = (2 - row + (n % 2)) % 3
+        const nextCol = (2 - col + Math.floor(n / 2)) % 3
+        return nextRow * 3 + nextCol
+      }
+    }
+
+    if (patternStyle === "arpeggio") {
+      // Musical chord progression (I - IV - V - vi)
+      const chordProgressions = [
+        [0, 2, 4, 7],
+        [3, 5, 7, 0],
+        [4, 6, 1, 3],
+        [5, 0, 2, 4],
+      ]
+      const currentChord = chordProgressions[Math.floor(n / 4) % chordProgressions.length]
+      const noteIndex = currentChord[n % currentChord.length]
+      return noteIndex % padsCount
+    }
+
+    if (patternStyle === "knighthop") {
+      // Chess Knight matrix hops
+      if (padsCount === 4) {
+        return (lastPad + (n % 2 === 0 ? 3 : 1)) % 4
+      } else if (padsCount === 9) {
+        const knightOffsets = [-7, -5, -3, 3, 5, 7]
+        const validOffsets = knightOffsets.map(o => (lastPad + o + 9) % 9).filter(p => p !== lastPad)
+        return validOffsets[n % validOffsets.length]
+      } else {
+        return (lastPad + 2 + (n % 3)) % padsCount
+      }
+    }
+
+    // Adaptive Chaos Random
+    let next = Math.floor(Math.random() * padsCount)
+    if (n >= 2 && currentSeq[n - 1] === next && currentSeq[n - 2] === next) {
+      next = (next + 1) % padsCount
+    }
+    return next
   }, [getPadsConfig, patternStyle])
 
-  // Sequence player logic
   const playSequenceStep = useCallback(() => {
     if (sequenceIndex < sequence.length) {
       const padId = sequence[sequenceIndex]
@@ -580,7 +606,6 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
     }
   }, [gameState, sequenceIndex, sequence.length, playSequenceStep, difficulty, mode])
 
-  // Speed Rush turn timer
   useEffect(() => {
     if (gameState === "waiting" && mode === "speed" && timeLeft !== null) {
       if (timeLeft <= 0) {
@@ -598,7 +623,6 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
     }
   }, [gameState, mode, timeLeft, playGameOverSound, saveHighScore, score])
 
-  // Start new game
   const startGame = () => {
     getAudioContext()
     const firstPad = generateNextPadId([])
@@ -612,7 +636,6 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
     setGameState("showing")
   }
 
-  // Shuffle pads for Chaos Mode
   const shufflePads = useCallback(() => {
     if (mode === "chaos") {
       setPadOrder((prev) => {
@@ -626,7 +649,6 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
     }
   }, [mode])
 
-  // Progress to next round
   const nextRound = useCallback(() => {
     const nextPad = generateNextPadId(sequence)
     const newSeq = [...sequence, nextPad]
@@ -646,7 +668,6 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
     setGameState("showing")
   }, [sequence, generateNextPadId, mode, shufflePads, playSuccessChime, triggerParticleBurst, checkAchievements, score])
 
-  // Player Pad Click Handler
   const handlePadClick = useCallback(
     (padId: number) => {
       if (gameState !== "waiting") return
@@ -683,7 +704,6 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
     [gameState, currentPads, playTone, playerSequence, sequence, mode, playGameOverSound, saveHighScore, score, checkAchievements, nextRound]
   )
 
-  // Keyboard Shortcuts (1-9, Q/W/A/S)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (gameState !== "waiting") return
@@ -773,10 +793,10 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
               </div>
             </div>
 
-            {/* Pattern Style Selector */}
+            {/* Complex Pattern Style Selector */}
             <div className="space-y-3">
               <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider text-left pl-1">
-                2. Select Pattern Generation Style
+                2. Select Advanced Pattern Style
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {(Object.keys(patternStylesConfig) as PatternStyle[]).map((pKey) => {
@@ -963,10 +983,9 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
           </div>
         )}
 
-        {/* PLAYING (SHOWING & WAITING) STATE */}
+        {/* PLAYING STATE */}
         {(gameState === "showing" || gameState === "waiting") && (
           <div className="bg-slate-900/90 border border-slate-800 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
-            {/* Top Bar Controls */}
             <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
               <div className="flex items-center gap-2">
                 <Button
@@ -999,7 +1018,6 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
               </div>
             </div>
 
-            {/* Center Status Screen */}
             <div className="bg-slate-950/80 rounded-2xl p-5 border border-slate-800 text-center relative overflow-hidden">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-left">
@@ -1028,7 +1046,6 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
                 </div>
               </div>
 
-              {/* Status Message */}
               <div className="pt-2 border-t border-slate-800/80 mt-2 flex items-center justify-between text-xs font-bold">
                 {gameState === "showing" && (
                   <div className="w-full text-blue-400 animate-pulse flex items-center justify-center gap-2">
@@ -1049,7 +1066,6 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
               </div>
             </div>
 
-            {/* Interactive Simon Pads Console */}
             <div
               className={`grid gap-3.5 ${
                 difficultyConfig[difficulty].padCount === 9
@@ -1098,7 +1114,6 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
               })}
             </div>
 
-            {/* Keyboard Guidance Footer */}
             <div className="text-center text-xs text-slate-500 flex items-center justify-center gap-1.5 pt-1">
               <Key className="w-3.5 h-3.5 text-slate-400" />
               <span>Use mouse or press keys <strong className="text-slate-400">1-{currentPads.length}</strong> (or Q/W/A/S)</span>
