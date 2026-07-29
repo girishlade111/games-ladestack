@@ -1,11 +1,38 @@
+import type { Metadata } from "next"
 import { Suspense } from "react"
 import GamesPageClient from "./games-page-client"
+import { CollectionPageJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld"
+import { gameRegistry } from "@/lib/game-registry"
+
+export const metadata: Metadata = {
+  title: "Free Browser Games Library - Browse Arcade, Puzzle, Action & Strategy Games",
+  description:
+    "Browse our entire catalog of 50+ free online browser games. Filter by Arcade, Puzzle, Action, Strategy, Card, and Word categories. Play instantly on desktop or mobile.",
+  alternates: {
+    canonical: "/games",
+  },
+  openGraph: {
+    title: "Free Online Browser Games Directory | GameHub",
+    description:
+      "Discover over 50 free web browser games across all categories. Arcade, Puzzle, Strategy, Word, and Card games.",
+    url: "/games",
+  },
+}
 
 export default function GamesPage() {
   return (
-    <Suspense fallback={<GamesPageSkeleton />}>
-      <GamesPageClient />
-    </Suspense>
+    <>
+      <CollectionPageJsonLd count={gameRegistry.length} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "/" },
+          { name: "Games Directory", url: "/games" },
+        ]}
+      />
+      <Suspense fallback={<GamesPageSkeleton />}>
+        <GamesPageClient />
+      </Suspense>
+    </>
   )
 }
 

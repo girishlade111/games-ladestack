@@ -161,6 +161,73 @@ export default function GamePageClient({ params }: { params: Promise<{ id: strin
         </Suspense>
       </div>
 
+      {!isFullscreen && (
+        <section className="border-t bg-muted/10 py-12 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto space-y-8">
+            <article className="space-y-3">
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                About {game.title} - Free Online Browser Game
+              </h2>
+              <p className="text-muted-foreground leading-relaxed">
+                {game.longDescription || game.description}
+              </p>
+            </article>
+
+            {game.controls && game.controls.length > 0 && (
+              <article className="space-y-3">
+                <h3 className="text-xl font-semibold text-foreground">
+                  How to Play {game.title} & Game Controls
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {game.controls.map((ctrl, i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 rounded-lg border bg-card text-sm">
+                      <span className="font-mono bg-primary/10 text-primary px-2.5 py-1 rounded text-xs font-semibold">
+                        {ctrl}
+                      </span>
+                      <span className="text-muted-foreground">Game Control</span>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            )}
+
+            <article className="space-y-3">
+              <h3 className="text-xl font-semibold text-foreground">
+                Key Game Features
+              </h3>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-muted-foreground list-disc list-inside">
+                <li>100% Free - No downloads or registration required</li>
+                <li>Play instantly in any modern web browser</li>
+                <li>Responsive controls for desktop and mobile devices</li>
+                <li>Category: <span className="text-foreground font-medium">{game.category}</span></li>
+                {game.difficulty && <li>Difficulty: <span className="text-foreground font-medium">{game.difficulty}</span></li>}
+                {game.playerCount && <li>Mode: <span className="text-foreground font-medium">{game.playerCount}</span></li>}
+              </ul>
+            </article>
+
+            <article className="space-y-4 border-t pt-6">
+              <h3 className="text-xl font-semibold text-foreground">
+                Frequently Asked Questions
+              </h3>
+              <div className="space-y-4 text-sm">
+                <div>
+                  <h4 className="font-medium text-foreground mb-1">Is {game.title} free to play online?</h4>
+                  <p className="text-muted-foreground">Yes! {game.title} is completely free to play in your browser with zero paywalls or mandatory sign-ups.</p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-foreground mb-1">Do I need to download or install software?</h4>
+                  <p className="text-muted-foreground">No downloads are needed. It runs instantly via modern HTML5 technology.</p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-foreground mb-1">Does {game.title} support mobile phones and tablets?</h4>
+                  <p className="text-muted-foreground">Yes, {game.title} is optimized for mobile touchscreens as well as desktop keyboards and mice.</p>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+      )}
+
       {!isFullscreen && relatedGames.length > 0 && (
         <Suspense fallback={<div className="border-t bg-muted/20 h-40 animate-pulse" />}>
           <RelatedGames data={{ games: relatedGames }} />

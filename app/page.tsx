@@ -1,8 +1,18 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { gameRegistry, categories } from "@/lib/game-registry"
 import GameLogo from "@/components/game-logo"
 import { Play, ArrowRight, Trophy, Gamepad2, Zap, Users, Brain, Timer, Target, BookOpen, LayoutGrid } from "lucide-react"
+
+export const metadata: Metadata = {
+  title: "GameHub - Play 50+ Free Online Browser Games (No Downloads)",
+  description:
+    "Play over 50+ high-quality free online browser games. Instant play with zero downloads or registration required. Play 2048, Solitaire, Snake, Tetris, Minesweeper, Pac-Man, Sudoku, and more!",
+  alternates: {
+    canonical: "/",
+  },
+}
 
 const categoryIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   Arcade: Zap,
