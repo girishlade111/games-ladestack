@@ -4,7 +4,8 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { gameRegistry } from "@/lib/game-registry"
-import { Search, Gamepad2 } from "lucide-react"
+import GameIcon from "@/components/game-icon"
+import { Search } from "lucide-react"
 
 export default function SearchBar() {
   const router = useRouter()
@@ -45,7 +46,7 @@ export default function SearchBar() {
               }}
             >
               <div className={`w-8 h-8 rounded-md ${game.color} flex items-center justify-center text-white shrink-0`}>
-                <Gamepad2 className="w-4 h-4" />
+                <GameIcon gameId={game.id} size={16} />
               </div>
               <div>
                 <div className="font-medium text-foreground">{game.title}</div>

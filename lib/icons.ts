@@ -32,6 +32,7 @@ import {
   Heart,
   Share2,
   Clock,
+  Ship,
   type LucideIcon,
 } from "lucide-react"
 
@@ -69,6 +70,7 @@ const iconMap: Record<string, LucideIcon> = {
   Heart,
   Share2,
   Clock,
+  Ship,
 }
 
 export function getIcon(name: string): LucideIcon {
@@ -109,4 +111,5 @@ export {
   Heart,
   Share2,
   Clock,
+  Ship,
 }

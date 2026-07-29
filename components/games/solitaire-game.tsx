@@ -125,7 +125,7 @@ export default function SolitaireGame({ themeColor = "#1d4ed8" }: { onBack?: () 
           if (fromPile === "waste") setWaste(newFromPile)
           setSelectedCard(null)
           setMoves((m) => m + 1)
-          checkWin(newTableau, foundations, stock, newFromPile.length < (fromPile === "tableau" ? tableau[fromCol!].length : waste.length) ? newFromPile : waste)
+          checkWin(newTableau, foundations, stock)
         }
         return
       }
@@ -148,7 +148,7 @@ export default function SolitaireGame({ themeColor = "#1d4ed8" }: { onBack?: () 
           if (fromPile === "waste") setWaste(newFromPile)
           setSelectedCard(null)
           setMoves((m) => m + 1)
-          checkWin(newTableau, newFoundations, stock, fromPile === "waste" ? newFromPile : waste)
+          checkWin(newTableau, newFoundations, stock)
         }
         return
       }
@@ -163,14 +163,16 @@ export default function SolitaireGame({ themeColor = "#1d4ed8" }: { onBack?: () 
     }
   }
 
-  const checkWin = (t: Card[][], f: Card[][], s: Card[], w: Card[]) => {
+  const checkWin = (t: Card[][], f: Card[][], s: Card[]) => {
     const totalFoundationCards = f.reduce((sum, pile) => sum + pile.length, 0)
     if (totalFoundationCards === 52) {
-      const best = parseInt(localStorage.getItem("solitaire-best") || "0")
-      if (best === 0 || moves + 1 < best) {
-        localStorage.setItem("solitaire-best", (moves + 1).toString())
-        setBestMoves(moves + 1)
-      }
+      try {
+        const best = parseInt(localStorage.getItem("solitaire-best") || "0")
+        if (best === 0 || moves + 1 < best) {
+          localStorage.setItem("solitaire-best", (moves + 1).toString())
+          setBestMoves(moves + 1)
+        }
+      } catch {}
       setPhase("won")
     }
   }
@@ -284,20 +286,16 @@ export default function SolitaireGame({ themeColor = "#1d4ed8" }: { onBack?: () 
           <div className="flex gap-2 justify-center">
             {tableau.map((column, colIdx) => (
               <div key={colIdx} className="flex flex-col gap-[2px] items-center min-w-[56px] sm:min-w-[64px]">
-                {column.map((card, cardIdx) => {
-                  const yOffset = card.faceUp ? 22 : 10
-                  return (
-                    <div
-                      key={card.id}
-                      style={{
-                        marginTop: card.faceUp ? `-${yOffset}px` : `-${yOffset}px`,
-                        marginTop: cardIdx === 0 ? "0" : card.faceUp ? `-${yOffset}px` : `-${yOffset}px`,
-                      }}
-                    >
-                      {renderCard(card, "tableau", colIdx, cardIdx)}
-                    </div>
-                  )
-                })}
+                {column.map((card, cardIdx) => (
+                  <div
+                    key={card.id}
+                    style={{
+                      marginTop: cardIdx === 0 ? "0" : card.faceUp ? "-22px" : "-10px",
+                    }}
+                  >
+                    {renderCard(card, "tableau", colIdx, cardIdx)}
+                  </div>
+                ))}
                 {column.length === 0 && (
                   <div className="w-14 h-20 sm:w-16 sm:h-24 rounded-md border-2 border-dashed border-muted-foreground/30" />
                 )}

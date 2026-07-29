@@ -26,6 +26,14 @@ const SudokuGame = lazy(() => import("@/components/games/sudoku-game"))
 const PacmanGame = lazy(() => import("@/components/games/pacman-game"))
 const SolitaireGame = lazy(() => import("@/components/games/solitaire-game"))
 const TriviaQuizGame = lazy(() => import("@/components/games/trivia-quiz-game"))
+const BlackjackGame = lazy(() => import("@/components/games/blackjack-game"))
+const PokerGame = lazy(() => import("@/components/games/poker-game"))
+const HangmanGame = lazy(() => import("@/components/games/hangman-game"))
+const WordSearchGame = lazy(() => import("@/components/games/word-search-game"))
+const CheckersGame = lazy(() => import("@/components/games/checkers-game"))
+const BattleshipGame = lazy(() => import("@/components/games/battleship-game"))
+const AsteroidsGame = lazy(() => import("@/components/games/asteroids-game"))
+const Match3Game = lazy(() => import("@/components/games/match3-game"))
 
 const gameComponentMap: Record<string, ComponentType<GameProps>> = {
   snake: SnakeGame as unknown as ComponentType<GameProps>,
@@ -53,6 +61,14 @@ const gameComponentMap: Record<string, ComponentType<GameProps>> = {
   pacman: PacmanGame as unknown as ComponentType<GameProps>,
   solitaire: SolitaireGame as unknown as ComponentType<GameProps>,
   "trivia-quiz": TriviaQuizGame as unknown as ComponentType<GameProps>,
+  blackjack: BlackjackGame as unknown as ComponentType<GameProps>,
+  poker: PokerGame as unknown as ComponentType<GameProps>,
+  hangman: HangmanGame as unknown as ComponentType<GameProps>,
+  "word-search": WordSearchGame as unknown as ComponentType<GameProps>,
+  checkers: CheckersGame as unknown as ComponentType<GameProps>,
+  battleship: BattleshipGame as unknown as ComponentType<GameProps>,
+  asteroids: AsteroidsGame as unknown as ComponentType<GameProps>,
+  match3: Match3Game as unknown as ComponentType<GameProps>,
 }
 
 export function getGameComponent(id: string): ComponentType<GameProps> {
