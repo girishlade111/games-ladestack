@@ -320,17 +320,19 @@ export default function GameDashboard() {
 
   if (currentGame !== "menu") {
     return (
-      <div className="relative w-full h-[100dvh] overflow-hidden bg-background touch-none flex flex-col items-center justify-center">
-        <Button
-          onClick={() => setCurrentGame("menu")}
-          variant="outline"
-          size="sm"
-          className="absolute top-4 left-4 z-50 bg-white/80 backdrop-blur-sm hover:bg-white text-black"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Menu
-        </Button>
-        <div className="w-full max-w-5xl max-h-[100dvh] aspect-auto relative flex items-center justify-center flex-1">
+      <div className="relative w-full min-h-screen bg-background flex flex-col">
+        <div className="sticky top-0 z-50 p-4 bg-background/80 backdrop-blur-sm border-b flex items-center">
+          <Button
+            onClick={() => setCurrentGame("menu")}
+            variant="outline"
+            size="sm"
+            className="bg-white hover:bg-gray-100 text-black"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Menu
+          </Button>
+        </div>
+        <div className="w-full flex-1 flex flex-col items-center justify-start pb-40 pt-4">
           {renderGame()}
         </div>
         <VirtualGamepad />
