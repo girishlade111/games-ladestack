@@ -1,7 +1,7 @@
 import { lazy, type ComponentType } from "react"
 import type { GameProps } from "./types"
 
-type GameLoader = () => Promise<{ default: ComponentType<GameProps> }>
+type GameLoader = () => Promise<{ default: ComponentType<any> }>
 
 const gameLoaders: Record<string, GameLoader> = {
   snake: () => import("@/components/games/snake-game"),
