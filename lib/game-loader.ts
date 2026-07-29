@@ -1,116 +1,80 @@
 import { lazy, type ComponentType } from "react"
 import type { GameProps } from "./types"
 
-const SnakeGame = lazy(() => import("@/components/games/snake-game"))
-const TetrisGame = lazy(() => import("@/components/games/tetris-game"))
-const PongGame = lazy(() => import("@/components/games/pong-game"))
-const FlappyTriangle = lazy(() => import("@/components/games/flappy-triangle"))
-const DinoGame = lazy(() => import("@/components/games/dino-game"))
-const BreakoutGame = lazy(() => import("@/components/games/breakout-game"))
-const ReactionGame = lazy(() => import("@/components/games/reaction-game"))
-const ColorMatchGame = lazy(() => import("@/components/games/color-match-game"))
-const SpaceInvadersGame = lazy(() => import("@/components/games/space-invaders-game"))
-const SimonSaysGame = lazy(() => import("@/components/games/simon-says-game"))
-const WhackAMoleGame = lazy(() => import("@/components/games/whack-a-mole-game"))
-const Puzzle2048Game = lazy(() => import("@/components/games/puzzle-2048-game"))
-const MemoryMatchGame = lazy(() => import("@/components/games/memory-match-game"))
-const WordScrambleGame = lazy(() => import("@/components/games/word-scramble-game"))
-const MinesweeperGame = lazy(() => import("@/components/games/minesweeper-game"))
-const TicTacToeGame = lazy(() => import("@/components/games/tic-tac-toe-game"))
-const ConnectFourGame = lazy(() => import("@/components/games/connect-four-game"))
-const OrbitDefense = lazy(() => import("@/components/games/orbit-defense"))
-const CoinCollectorGame = lazy(() => import("@/components/games/coin-collector-game"))
-const BubblePopGame = lazy(() => import("@/components/games/bubble-pop-game"))
-const TypingSpeedGame = lazy(() => import("@/components/games/typing-speed-game"))
-const SudokuGame = lazy(() => import("@/components/games/sudoku-game"))
-const PacmanGame = lazy(() => import("@/components/games/pacman-game"))
-const SolitaireGame = lazy(() => import("@/components/games/solitaire-game"))
-const TriviaQuizGame = lazy(() => import("@/components/games/trivia-quiz-game"))
-const BlackjackGame = lazy(() => import("@/components/games/blackjack-game"))
-const PokerGame = lazy(() => import("@/components/games/poker-game"))
-const HangmanGame = lazy(() => import("@/components/games/hangman-game"))
-const WordSearchGame = lazy(() => import("@/components/games/word-search-game"))
-const CheckersGame = lazy(() => import("@/components/games/checkers-game"))
-const BattleshipGame = lazy(() => import("@/components/games/battleship-game"))
-const AsteroidsGame = lazy(() => import("@/components/games/asteroids-game"))
-const Match3Game = lazy(() => import("@/components/games/match3-game"))
-const StackTowerGame = lazy(() => import("@/components/games/stack-tower-game"))
-const LaneRacerGame = lazy(() => import("@/components/games/lane-racer-game"))
-const RoadCrossingGame = lazy(() => import("@/components/games/road-crossing-game"))
-const SlidingPuzzleGame = lazy(() => import("@/components/games/sliding-puzzle-game"))
-const LightsOutGame = lazy(() => import("@/components/games/lights-out-game"))
-const TowerOfHanoiGame = lazy(() => import("@/components/games/tower-of-hanoi-game"))
-const ReversiGame = lazy(() => import("@/components/games/reversi-game"))
-const GomokuGame = lazy(() => import("@/components/games/gomoku-game"))
-const DotsAndBoxesGame = lazy(() => import("@/components/games/dots-and-boxes-game"))
-const AimTrainerGame = lazy(() => import("@/components/games/aim-trainer-game"))
-const RhythmTapGame = lazy(() => import("@/components/games/rhythm-tap-game"))
-const MeteorDodgeGame = lazy(() => import("@/components/games/meteor-dodge-game"))
-const CardWarGame = lazy(() => import("@/components/games/card-war-game"))
-const HiLoGame = lazy(() => import("@/components/games/hi-lo-game"))
-const CrazyEightsGame = lazy(() => import("@/components/games/crazy-eights-game"))
-const WordleGame = lazy(() => import("@/components/games/wordle-game"))
-const AnagramHuntGame = lazy(() => import("@/components/games/anagram-hunt-game"))
-const SpellingBeeGame = lazy(() => import("@/components/games/spelling-bee-game"))
+type GameLoader = () => Promise<{ default: ComponentType<GameProps> }>
 
-const gameComponentMap: Record<string, ComponentType<GameProps>> = {
-  snake: SnakeGame as unknown as ComponentType<GameProps>,
-  tetris: TetrisGame as unknown as ComponentType<GameProps>,
-  pong: PongGame as unknown as ComponentType<GameProps>,
-  flappy: FlappyTriangle as unknown as ComponentType<GameProps>,
-  dino: DinoGame as unknown as ComponentType<GameProps>,
-  breakout: BreakoutGame as unknown as ComponentType<GameProps>,
-  reaction: ReactionGame as unknown as ComponentType<GameProps>,
-  "color-match": ColorMatchGame as unknown as ComponentType<GameProps>,
-  "space-invaders": SpaceInvadersGame as unknown as ComponentType<GameProps>,
-  "simon-says": SimonSaysGame as unknown as ComponentType<GameProps>,
-  "whack-a-mole": WhackAMoleGame as unknown as ComponentType<GameProps>,
-  "2048": Puzzle2048Game as unknown as ComponentType<GameProps>,
-  "memory-match": MemoryMatchGame as unknown as ComponentType<GameProps>,
-  "word-scramble": WordScrambleGame as unknown as ComponentType<GameProps>,
-  minesweeper: MinesweeperGame as unknown as ComponentType<GameProps>,
-  "tic-tac-toe": TicTacToeGame as unknown as ComponentType<GameProps>,
-  "connect-four": ConnectFourGame as unknown as ComponentType<GameProps>,
-  "orbit-defense": OrbitDefense as unknown as ComponentType<GameProps>,
-  "coin-collector": CoinCollectorGame as unknown as ComponentType<GameProps>,
-  "bubble-pop": BubblePopGame as unknown as ComponentType<GameProps>,
-  "typing-speed": TypingSpeedGame as unknown as ComponentType<GameProps>,
-  sudoku: SudokuGame as unknown as ComponentType<GameProps>,
-  pacman: PacmanGame as unknown as ComponentType<GameProps>,
-  solitaire: SolitaireGame as unknown as ComponentType<GameProps>,
-  "trivia-quiz": TriviaQuizGame as unknown as ComponentType<GameProps>,
-  blackjack: BlackjackGame as unknown as ComponentType<GameProps>,
-  poker: PokerGame as unknown as ComponentType<GameProps>,
-  hangman: HangmanGame as unknown as ComponentType<GameProps>,
-  "word-search": WordSearchGame as unknown as ComponentType<GameProps>,
-  checkers: CheckersGame as unknown as ComponentType<GameProps>,
-  battleship: BattleshipGame as unknown as ComponentType<GameProps>,
-  asteroids: AsteroidsGame as unknown as ComponentType<GameProps>,
-  match3: Match3Game as unknown as ComponentType<GameProps>,
-  "stack-tower": StackTowerGame as unknown as ComponentType<GameProps>,
-  "lane-racer": LaneRacerGame as unknown as ComponentType<GameProps>,
-  "road-crossing": RoadCrossingGame as unknown as ComponentType<GameProps>,
-  "sliding-puzzle": SlidingPuzzleGame as unknown as ComponentType<GameProps>,
-  "lights-out": LightsOutGame as unknown as ComponentType<GameProps>,
-  "tower-of-hanoi": TowerOfHanoiGame as unknown as ComponentType<GameProps>,
-  reversi: ReversiGame as unknown as ComponentType<GameProps>,
-  gomoku: GomokuGame as unknown as ComponentType<GameProps>,
-  "dots-and-boxes": DotsAndBoxesGame as unknown as ComponentType<GameProps>,
-  "aim-trainer": AimTrainerGame as unknown as ComponentType<GameProps>,
-  "rhythm-tap": RhythmTapGame as unknown as ComponentType<GameProps>,
-  "meteor-dodge": MeteorDodgeGame as unknown as ComponentType<GameProps>,
-  "card-war": CardWarGame as unknown as ComponentType<GameProps>,
-  "hi-lo": HiLoGame as unknown as ComponentType<GameProps>,
-  "crazy-eights": CrazyEightsGame as unknown as ComponentType<GameProps>,
-  wordle: WordleGame as unknown as ComponentType<GameProps>,
-  "anagram-hunt": AnagramHuntGame as unknown as ComponentType<GameProps>,
-  "spelling-bee": SpellingBeeGame as unknown as ComponentType<GameProps>,
+const gameLoaders: Record<string, GameLoader> = {
+  snake: () => import("@/components/games/snake-game"),
+  tetris: () => import("@/components/games/tetris-game"),
+  pong: () => import("@/components/games/pong-game"),
+  flappy: () => import("@/components/games/flappy-triangle"),
+  dino: () => import("@/components/games/dino-game"),
+  breakout: () => import("@/components/games/breakout-game"),
+  reaction: () => import("@/components/games/reaction-game"),
+  "color-match": () => import("@/components/games/color-match-game"),
+  "space-invaders": () => import("@/components/games/space-invaders-game"),
+  "simon-says": () => import("@/components/games/simon-says-game"),
+  "whack-a-mole": () => import("@/components/games/whack-a-mole-game"),
+  "2048": () => import("@/components/games/puzzle-2048-game"),
+  "memory-match": () => import("@/components/games/memory-match-game"),
+  "word-scramble": () => import("@/components/games/word-scramble-game"),
+  minesweeper: () => import("@/components/games/minesweeper-game"),
+  "tic-tac-toe": () => import("@/components/games/tic-tac-toe-game"),
+  "connect-four": () => import("@/components/games/connect-four-game"),
+  "orbit-defense": () => import("@/components/games/orbit-defense"),
+  "coin-collector": () => import("@/components/games/coin-collector-game"),
+  "bubble-pop": () => import("@/components/games/bubble-pop-game"),
+  "typing-speed": () => import("@/components/games/typing-speed-game"),
+  sudoku: () => import("@/components/games/sudoku-game"),
+  pacman: () => import("@/components/games/pacman-game"),
+  solitaire: () => import("@/components/games/solitaire-game"),
+  "trivia-quiz": () => import("@/components/games/trivia-quiz-game"),
+  blackjack: () => import("@/components/games/blackjack-game"),
+  poker: () => import("@/components/games/poker-game"),
+  hangman: () => import("@/components/games/hangman-game"),
+  "word-search": () => import("@/components/games/word-search-game"),
+  checkers: () => import("@/components/games/checkers-game"),
+  battleship: () => import("@/components/games/battleship-game"),
+  asteroids: () => import("@/components/games/asteroids-game"),
+  match3: () => import("@/components/games/match3-game"),
+  "stack-tower": () => import("@/components/games/stack-tower-game"),
+  "lane-racer": () => import("@/components/games/lane-racer-game"),
+  "road-crossing": () => import("@/components/games/road-crossing-game"),
+  "sliding-puzzle": () => import("@/components/games/sliding-puzzle-game"),
+  "lights-out": () => import("@/components/games/lights-out-game"),
+  "tower-of-hanoi": () => import("@/components/games/tower-of-hanoi-game"),
+  reversi: () => import("@/components/games/reversi-game"),
+  gomoku: () => import("@/components/games/gomoku-game"),
+  "dots-and-boxes": () => import("@/components/games/dots-and-boxes-game"),
+  "aim-trainer": () => import("@/components/games/aim-trainer-game"),
+  "rhythm-tap": () => import("@/components/games/rhythm-tap-game"),
+  "meteor-dodge": () => import("@/components/games/meteor-dodge-game"),
+  "card-war": () => import("@/components/games/card-war-game"),
+  "hi-lo": () => import("@/components/games/hi-lo-game"),
+  "crazy-eights": () => import("@/components/games/crazy-eights-game"),
+  wordle: () => import("@/components/games/wordle-game"),
+  "anagram-hunt": () => import("@/components/games/anagram-hunt-game"),
+  "spelling-bee": () => import("@/components/games/spelling-bee-game"),
 }
 
+const lazyComponentCache: Record<string, ComponentType<GameProps>> = {}
+
 export function getGameComponent(id: string): ComponentType<GameProps> {
-  return gameComponentMap[id] || (() => null)
+  if (!gameLoaders[id]) {
+    return () => null
+  }
+  if (!lazyComponentCache[id]) {
+    lazyComponentCache[id] = lazy(gameLoaders[id]) as ComponentType<GameProps>
+  }
+  return lazyComponentCache[id]
+}
+
+export function preloadGame(id: string): void {
+  if (gameLoaders[id]) {
+    void gameLoaders[id]()
+  }
 }
 
 export function isValidGameId(id: string): boolean {
-  return id in gameComponentMap
+  return id in gameLoaders
 }

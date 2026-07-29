@@ -1,18 +1,24 @@
 "use client"
 
-import { useState, useMemo, memo } from "react"
+import { useState, useMemo, useDeferredValue, memo } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { gameRegistry, categories } from "@/lib/game-registry"
 import GameLogo from "@/components/game-logo"
+import { preloadGame } from "@/lib/game-loader"
 import type { GameMeta } from "@/lib/types"
 import { Search, Play, Star, Grid3X3, List } from "lucide-react"
 
 const GameCard = memo(function GameCard({ game }: { game: GameMeta }) {
   return (
-    <Link href={`/games/${game.id}`} className="group block h-full">
+    <Link
+      href={`/games/${game.id}`}
+      className="group block h-full"
+      onMouseEnter={() => preloadGame(game.id)}
+      onFocus={() => preloadGame(game.id)}
+    >
       <div className="relative overflow-hidden rounded-xl border bg-card hover:border-primary/30 hover:shadow-lg transition-all duration-300 p-6 h-full flex flex-col">
         {game.isNew && (
           <div className="absolute top-3 right-3 bg-primary text-primary-foreground text-xs font-medium px-2 py-1 rounded-full z-10">
@@ -47,12 +53,13 @@ export default function GamesPageClient() {
   const initialCategory = searchParams.get("category") || "All"
   const [selectedCategory, setSelectedCategory] = useState(initialCategory)
   const [searchQuery, setSearchQuery] = useState("")
+  const deferredSearchQuery = useDeferredValue(searchQuery)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
 
   const filteredGames = useMemo(() => {
     let result = selectedCategory === "All" ? gameRegistry : gameRegistry.filter((g) => g.category === selectedCategory)
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
+    if (deferredSearchQuery) {
+      const query = deferredSearchQuery.toLowerCase().trim()
       result = result.filter(
         (g) =>
           g.title.toLowerCase().includes(query) ||
@@ -61,7 +68,7 @@ export default function GamesPageClient() {
       )
     }
     return result
-  }, [selectedCategory, searchQuery])
+  }, [selectedCategory, deferredSearchQuery])
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
