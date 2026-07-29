@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import VirtualGamepad from "@/components/virtual-gamepad"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardTitle } from "@/components/ui/card"
 import {
@@ -319,17 +320,20 @@ export default function GameDashboard() {
 
   if (currentGame !== "menu") {
     return (
-      <div className="relative w-full h-full">
+      <div className="relative w-full h-[100dvh] overflow-hidden bg-background touch-none flex flex-col items-center justify-center">
         <Button
           onClick={() => setCurrentGame("menu")}
           variant="outline"
           size="sm"
-          className="absolute top-4 left-4 z-10 bg-white/80 backdrop-blur-sm hover:bg-white"
+          className="absolute top-4 left-4 z-50 bg-white/80 backdrop-blur-sm hover:bg-white text-black"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Menu
         </Button>
-        {renderGame()}
+        <div className="w-full max-w-5xl max-h-[100dvh] aspect-auto relative flex items-center justify-center flex-1">
+          {renderGame()}
+        </div>
+        <VirtualGamepad />
       </div>
     )
   }
