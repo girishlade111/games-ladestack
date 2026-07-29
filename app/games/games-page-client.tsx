@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { gameRegistry, categories } from "@/lib/game-registry"
-import GameIcon from "@/components/game-icon"
+import GameLogo from "@/components/game-logo"
 import type { GameMeta } from "@/lib/types"
 import { Search, Play, Star, Grid3X3, List } from "lucide-react"
 
@@ -19,9 +19,7 @@ const GameCard = memo(function GameCard({ game }: { game: GameMeta }) {
             NEW
           </div>
         )}
-        <div className={`w-12 h-12 rounded-xl ${game.color} flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform`}>
-          <GameIcon gameId={game.id} size={24} />
-        </div>
+        <GameLogo gameId={game.id} size={48} className="mb-4 group-hover:scale-110 transition-transform" />
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-semibold text-foreground">{game.title}</h3>
           <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{game.category}</span>

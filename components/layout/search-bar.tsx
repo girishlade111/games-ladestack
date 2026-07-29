@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { gameRegistry } from "@/lib/game-registry"
-import GameIcon from "@/components/game-icon"
+import GameLogo from "@/components/game-logo"
 import { Search } from "lucide-react"
 
 export default function SearchBar() {
@@ -45,9 +45,7 @@ export default function SearchBar() {
                 setSearchOpen(false)
               }}
             >
-              <div className={`w-8 h-8 rounded-md ${game.color} flex items-center justify-center text-white shrink-0`}>
-                <GameIcon gameId={game.id} size={16} />
-              </div>
+              <GameLogo gameId={game.id} size={32} rounded="rounded-md" />
               <div>
                 <div className="font-medium text-foreground">{game.title}</div>
                 <div className="text-xs text-muted-foreground">{game.category}</div>

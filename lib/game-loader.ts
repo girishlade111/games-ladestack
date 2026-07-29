@@ -34,6 +34,24 @@ const CheckersGame = lazy(() => import("@/components/games/checkers-game"))
 const BattleshipGame = lazy(() => import("@/components/games/battleship-game"))
 const AsteroidsGame = lazy(() => import("@/components/games/asteroids-game"))
 const Match3Game = lazy(() => import("@/components/games/match3-game"))
+const StackTowerGame = lazy(() => import("@/components/games/stack-tower-game"))
+const LaneRacerGame = lazy(() => import("@/components/games/lane-racer-game"))
+const RoadCrossingGame = lazy(() => import("@/components/games/road-crossing-game"))
+const SlidingPuzzleGame = lazy(() => import("@/components/games/sliding-puzzle-game"))
+const LightsOutGame = lazy(() => import("@/components/games/lights-out-game"))
+const TowerOfHanoiGame = lazy(() => import("@/components/games/tower-of-hanoi-game"))
+const ReversiGame = lazy(() => import("@/components/games/reversi-game"))
+const GomokuGame = lazy(() => import("@/components/games/gomoku-game"))
+const DotsAndBoxesGame = lazy(() => import("@/components/games/dots-and-boxes-game"))
+const AimTrainerGame = lazy(() => import("@/components/games/aim-trainer-game"))
+const RhythmTapGame = lazy(() => import("@/components/games/rhythm-tap-game"))
+const MeteorDodgeGame = lazy(() => import("@/components/games/meteor-dodge-game"))
+const CardWarGame = lazy(() => import("@/components/games/card-war-game"))
+const HiLoGame = lazy(() => import("@/components/games/hi-lo-game"))
+const CrazyEightsGame = lazy(() => import("@/components/games/crazy-eights-game"))
+const WordleGame = lazy(() => import("@/components/games/wordle-game"))
+const AnagramHuntGame = lazy(() => import("@/components/games/anagram-hunt-game"))
+const SpellingBeeGame = lazy(() => import("@/components/games/spelling-bee-game"))
 
 const gameComponentMap: Record<string, ComponentType<GameProps>> = {
   snake: SnakeGame as unknown as ComponentType<GameProps>,
@@ -69,6 +87,24 @@ const gameComponentMap: Record<string, ComponentType<GameProps>> = {
   battleship: BattleshipGame as unknown as ComponentType<GameProps>,
   asteroids: AsteroidsGame as unknown as ComponentType<GameProps>,
   match3: Match3Game as unknown as ComponentType<GameProps>,
+  "stack-tower": StackTowerGame as unknown as ComponentType<GameProps>,
+  "lane-racer": LaneRacerGame as unknown as ComponentType<GameProps>,
+  "road-crossing": RoadCrossingGame as unknown as ComponentType<GameProps>,
+  "sliding-puzzle": SlidingPuzzleGame as unknown as ComponentType<GameProps>,
+  "lights-out": LightsOutGame as unknown as ComponentType<GameProps>,
+  "tower-of-hanoi": TowerOfHanoiGame as unknown as ComponentType<GameProps>,
+  reversi: ReversiGame as unknown as ComponentType<GameProps>,
+  gomoku: GomokuGame as unknown as ComponentType<GameProps>,
+  "dots-and-boxes": DotsAndBoxesGame as unknown as ComponentType<GameProps>,
+  "aim-trainer": AimTrainerGame as unknown as ComponentType<GameProps>,
+  "rhythm-tap": RhythmTapGame as unknown as ComponentType<GameProps>,
+  "meteor-dodge": MeteorDodgeGame as unknown as ComponentType<GameProps>,
+  "card-war": CardWarGame as unknown as ComponentType<GameProps>,
+  "hi-lo": HiLoGame as unknown as ComponentType<GameProps>,
+  "crazy-eights": CrazyEightsGame as unknown as ComponentType<GameProps>,
+  wordle: WordleGame as unknown as ComponentType<GameProps>,
+  "anagram-hunt": AnagramHuntGame as unknown as ComponentType<GameProps>,
+  "spelling-bee": SpellingBeeGame as unknown as ComponentType<GameProps>,
 }
 
 export function getGameComponent(id: string): ComponentType<GameProps> {

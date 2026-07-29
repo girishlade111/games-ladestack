@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { gameRegistry, categories } from "@/lib/game-registry"
-import GameIcon from "@/components/game-icon"
+import GameLogo from "@/components/game-logo"
 import { Play, ArrowRight, Trophy, Gamepad2, Zap, Users, Brain, Timer, Target, BookOpen, LayoutGrid } from "lucide-react"
 
 const categoryIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -89,9 +89,7 @@ export default function HomePage() {
                   <div className="absolute top-3 right-3 bg-primary text-primary-foreground text-xs font-medium px-2 py-1 rounded-full z-10">
                     NEW
                   </div>
-                  <div className={`w-12 h-12 rounded-xl ${game.color} flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform`}>
-                    <GameIcon gameId={game.id} size={24} />
-                  </div>
+                  <GameLogo gameId={game.id} size={48} className="mb-4 group-hover:scale-110 transition-transform" />
                   <h3 className="text-lg font-semibold text-foreground mb-2">{game.title}</h3>
                   <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{game.description}</p>
                   <div className="flex items-center justify-between">

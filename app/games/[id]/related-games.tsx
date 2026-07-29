@@ -1,5 +1,5 @@
 import Link from "next/link"
-import GameIcon from "@/components/game-icon"
+import GameLogo from "@/components/game-logo"
 
 type RelatedGameData = { id: string; color: string; title: string }
 
@@ -15,9 +15,7 @@ export default function RelatedGames({ data }: { data: { games: RelatedGameData[
                 href={`/games/${g.id}`}
                 className="group flex flex-col items-center gap-2 p-4 rounded-xl border bg-card hover:border-primary/30 hover:shadow-sm transition-all"
               >
-                <div className={`w-10 h-10 rounded-lg ${g.color} flex items-center justify-center text-white group-hover:scale-110 transition-transform`}>
-                  <GameIcon gameId={g.id} size={20} />
-                </div>
+                <GameLogo gameId={g.id} size={40} rounded="rounded-lg" className="group-hover:scale-110 transition-transform" />
                 <span className="text-xs font-medium text-center">{g.title}</span>
               </Link>
             ))}
