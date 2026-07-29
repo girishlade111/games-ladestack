@@ -1,6 +1,6 @@
 "use client"
 
-import { use, Suspense } from "react"
+import { use, Suspense, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import dynamic from "next/dynamic"
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { getGameById, gameRegistry } from "@/lib/game-registry"
 import GameIcon from "@/components/game-icon"
 import { getGameComponent, isValidGameId } from "@/lib/game-loader"
-import { ArrowLeft, Keyboard, MousePointerClick, Star, Clock, Users } from "lucide-react"
+import { ArrowLeft, Keyboard, MousePointerClick, Star, Clock, Users, Maximize, Minimize } from "lucide-react"
 
 const RelatedGames = dynamic(() => import("./related-games"), {
   loading: () => <div className="border-t bg-muted/20 h-40 animate-pulse" />,
@@ -27,6 +27,13 @@ export default function GamePageClient({ params }: { params: Promise<{ id: strin
   const { id } = use(params)
   const router = useRouter()
   const game = getGameById(id)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape" && isFullscreen) setIsFullscreen(false) }
+    window.addEventListener("keydown", handleEsc)
+    return () => window.removeEventListener("keydown", handleEsc)
+  }, [isFullscreen])
 
   if (!game || !isValidGameId(id)) {
     return (
@@ -49,6 +56,32 @@ export default function GamePageClient({ params }: { params: Promise<{ id: strin
     .filter((g) => g.id !== id && g.category === game.category)
     .slice(0, 6)
     .map((g) => ({ id: g.id, color: g.color, title: g.title }))
+
+  const FullscreenToggle = () => (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => setIsFullscreen(!isFullscreen)}
+      className={`${isFullscreen ? "fixed top-4 right-4 z-50 bg-background/80 backdrop-blur border shadow-lg hover:bg-background" : ""}`}
+      title={isFullscreen ? "Exit Fullscreen (Esc)" : "Fullscreen"}
+    >
+      {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4 mr-1.5" />}
+      {!isFullscreen && <span className="text-xs">Fullscreen</span>}
+    </Button>
+  )
+
+  if (isFullscreen) {
+    return (
+      <div className="fixed inset-0 z-40 bg-background overflow-auto">
+        <FullscreenToggle />
+        <div className="min-h-screen w-full">
+          <Suspense fallback={<GameLoading title={game.title} />}>
+            <GameComp />
+          </Suspense>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col">
@@ -73,6 +106,7 @@ export default function GamePageClient({ params }: { params: Promise<{ id: strin
                 </div>
               </div>
             </div>
+            <FullscreenToggle />
           </div>
           {game.controls && game.controls.length > 0 && (
             <div className="mt-4 flex flex-wrap items-center gap-3">
