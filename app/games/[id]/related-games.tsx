@@ -1,5 +1,6 @@
 import Link from "next/link"
 import GameLogo from "@/components/game-logo"
+import { preloadGame } from "@/lib/game-loader"
 
 type RelatedGameData = { id: string; color: string; title: string }
 
@@ -13,6 +14,7 @@ export default function RelatedGames({ data }: { data: { games: RelatedGameData[
               <Link
                 key={g.id}
                 href={`/games/${g.id}`}
+                onMouseEnter={() => preloadGame(g.id)}
                 className="group flex flex-col items-center gap-2 p-4 rounded-xl border bg-card hover:border-primary/30 hover:shadow-sm transition-all"
               >
                 <GameLogo gameId={g.id} size={40} rounded="rounded-lg" className="group-hover:scale-110 transition-transform" />
