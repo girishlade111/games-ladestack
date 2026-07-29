@@ -9,7 +9,7 @@ export function WebSiteJsonLd() {
     name: 'GameHub',
     alternateName: ['GameHub Free Games', 'GameHub Online Games'],
     url: baseUrl,
-    description: 'Play free online browser games instantly with no downloads or registration.',
+    description: 'Play 50+ free online browser games instantly with no downloads or registration.',
     potentialAction: {
       '@type': 'SearchAction',
       target: {
@@ -119,7 +119,13 @@ export function BreadcrumbJsonLd({ items }: { items: BreadcrumbItem[] }) {
   )
 }
 
-export function CollectionPageJsonLd({ count }: { count: number }) {
+export function CollectionPageJsonLd({
+  count,
+  games,
+}: {
+  count: number
+  games?: Array<{ id: string; title: string }>
+}) {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
@@ -127,6 +133,47 @@ export function CollectionPageJsonLd({ count }: { count: number }) {
     description: `Browse our full collection of ${count}+ free browser games across Arcade, Puzzle, Action, Strategy, Card, and Word categories.`,
     url: `${baseUrl}/games`,
     numberOfItems: count,
+    ...(games && games.length > 0
+      ? {
+          mainEntity: {
+            '@type': 'ItemList',
+            numberOfItems: games.length,
+            itemListElement: games.map((game, index) => ({
+              '@type': 'ListItem',
+              position: index + 1,
+              name: game.title,
+              url: `${baseUrl}/games/${game.id}`,
+            })),
+          },
+        }
+      : {}),
+  }
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  )
+}
+
+export interface FAQItem {
+  question: string
+  answer: string
+}
+
+export function FAQPageJsonLd({ mainEntity }: { mainEntity: FAQItem[] }) {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: mainEntity.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.answer,
+      },
+    })),
   }
 
   return (
