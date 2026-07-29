@@ -1,5 +1,5 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { ThemeProvider } from "@/components/theme-provider"
 import Header from "@/components/layout/header"
 import Footer from "@/components/layout/footer"
@@ -7,6 +7,12 @@ import { WebSiteJsonLd, OrganizationJsonLd } from "@/components/seo/json-ld"
 import "./globals.css"
 
 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://games-ladestack.vercel.app"
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
@@ -84,11 +90,6 @@ export const metadata: Metadata = {
       "Instant access to 50+ free online browser games. No downloads, no installs. Arcade, puzzle, action, card & strategy games.",
     images: ["/placeholder.jpg"],
     creator: "@gamehub",
-  },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
   },
 }
 
