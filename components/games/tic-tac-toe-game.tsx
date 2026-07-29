@@ -1495,7 +1495,7 @@ export default function TicTacToeGame({ onBack }: TicTacToeGameProps) {
               }`}>
                 <div className="text-right">
                   <div className="text-xs font-bold text-slate-300">
-                    {mode === "vs-ai" ? (humanPlayer === "O" ? "Player (You)" : "AI Bot") : "Player O"}
+                    {mode === "vs-ai" ? ((humanPlayer as PlayerSymbol) === "O" ? "Player (You)" : "AI Bot") : "Player O"}
                   </div>
                   <div className="text-lg font-black text-purple-400">{stats.oWins} W</div>
                 </div>

@@ -330,7 +330,7 @@ interface UltimatePower {
   lastUsed: number
   description: string
   color: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
 }
 
 // ==========================================
