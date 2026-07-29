@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#030712" />
+    </linearGradient>
+    <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe" />
+      <stop offset="50%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ec4899" />
+      <stop offset="100%" stop-color="#f43f5e" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Rounded Box -->
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#bgGrad)" stroke="rgba(59, 130, 246, 0.4)" stroke-width="8" />
+  
+  <!-- Outer Glow Ring -->
+  <rect x="28" y="28" width="456" height="456" rx="96" fill="none" stroke="url(#neonGrad)" stroke-width="4" opacity="0.6" />
+
+  <!-- Controller G Logo -->
+  <g transform="translate(16, 16)">
+    <!-- Main Outer Arcade G-shape -->
+    <path d="M 330 150 C 290 110, 220 110, 170 150 C 110 200, 110 280, 165 335 C 220 390, 300 390, 345 345 C 375 315, 380 280, 380 250 L 250 250 L 250 205 L 425 205 C 430 250, 425 310, 385 360 C 320 440, 195 440, 120 365 C 45 290, 45 180, 130 105 C 205 40, 335 45, 410 115 Z" fill="url(#neonGrad)" />
+    
+    <!-- D-Pad Buttons -->
+    <rect x="180" y="235" width="22" height="50" rx="5" fill="#ffffff" opacity="0.95" />
+    <rect x="166" y="249" width="50" height="22" rx="5" fill="#ffffff" opacity="0.95" />
+
+    <!-- Action Buttons -->
+    <circle cx="330" cy="225" r="14" fill="url(#accentGrad)" />
+    <circle cx="365" cy="255" r="14" fill="url(#accentGrad)" />
+  </g>
+</svg>
