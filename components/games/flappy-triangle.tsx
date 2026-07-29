@@ -5,352 +5,138 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Triangle, Trophy, RotateCcw } from "lucide-react"
 
-interface TrianglePlayer {
-  x: number
-  y: number
-  velocity: number
-}
+const CANVAS_WIDTH = 800; const CANVAS_HEIGHT = 600
+const TRIANGLE_SIZE = 20; const GRAVITY = 0.6; const JUMP_FORCE = -12
+const OBSTACLE_WIDTH = 60; const OBSTACLE_GAP = 150; const OBSTACLE_SPEED = 3
 
-interface Obstacle {
-  x: number
-  topHeight: number
-  bottomHeight: number
-  width: number
-  passed: boolean
-}
+interface Obstacle { x: number; topHeight: number; bottomHeight: number; width: number; passed: boolean }
 
-interface FlappyTriangleProps {
-  onBack?: () => void
-  themeColor?: string
-}
-
-const CANVAS_WIDTH = 800
-const CANVAS_HEIGHT = 600
-const TRIANGLE_SIZE = 20
-const GRAVITY = 0.6
-const JUMP_FORCE = -12
-const OBSTACLE_WIDTH = 60
-const OBSTACLE_GAP = 150
-const OBSTACLE_SPEED = 3
-
-export default function FlappyTriangle({ onBack, themeColor = "#f59e0b" }: FlappyTriangleProps) {
+export default function FlappyTriangle({ onBack, themeColor = "#f59e0b" }: { onBack?: () => void; themeColor?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [triangle, setTriangle] = useState<TrianglePlayer>({ x: 100, y: CANVAS_HEIGHT / 2, velocity: 0 })
-  const [obstacles, setObstacles] = useState<Obstacle[]>([])
   const [score, setScore] = useState(0)
-  const [gameRunning, setGameRunning] = useState(false)
-  const [gameOver, setGameOver] = useState(false)
   const [bestScore, setBestScore] = useState(0)
   const [gameState, setGameState] = useState<"menu" | "playing" | "gameOver">("menu")
+  const gsRef = useRef<"menu" | "playing" | "gameOver">("menu")
 
-  const resetGame = useCallback(() => {
-    setTriangle({ x: 100, y: CANVAS_HEIGHT / 2, velocity: 0 })
-    setObstacles([])
-    setScore(0)
-    setGameRunning(false)
-    setGameOver(false)
-    setGameState("menu")
+  const tRef = useRef({ x: 100, y: CANVAS_HEIGHT / 2, velocity: 0 })
+  const obstaclesRef = useRef<Obstacle[]>([])
+  const scoreRef = useRef(0)
+  const animFrameRef = useRef(0)
+
+  const generateObstacle = useCallback((x: number): Obstacle => {
+    const th = Math.random() * (CANVAS_HEIGHT - OBSTACLE_GAP - 100) + 50
+    return { x, topHeight: th, bottomHeight: CANVAS_HEIGHT - th - OBSTACLE_GAP, width: OBSTACLE_WIDTH, passed: false }
   }, [])
 
+  const checkCollision = (t: { x: number; y: number }, obs: Obstacle[]) => {
+    if (t.y <= 0 || t.y >= CANVAS_HEIGHT - TRIANGLE_SIZE) return true
+    for (const o of obs) if (t.x + TRIANGLE_SIZE > o.x && t.x < o.x + o.width && (t.y < o.topHeight || t.y + TRIANGLE_SIZE > CANVAS_HEIGHT - o.bottomHeight)) return true
+    return false
+  }
+
   const startGame = useCallback(() => {
-    setGameState("playing")
-    setGameRunning(true)
-    setTriangle({ x: 100, y: CANVAS_HEIGHT / 2, velocity: 0 })
-    setObstacles([])
-    setScore(0)
-    setGameOver(false)
+    tRef.current = { x: 100, y: CANVAS_HEIGHT / 2, velocity: 0 }
+    obstaclesRef.current = []; scoreRef.current = 0
+    setScore(0); setGameState("playing"); gsRef.current = "playing"
   }, [])
 
   const jump = useCallback(() => {
-    if (gameState === "menu") {
-      startGame()
-      return
-    }
-    if (gameState === "gameOver") {
-      resetGame()
-      return
-    }
-    if (gameState === "playing") {
-      setTriangle((prev) => ({ ...prev, velocity: JUMP_FORCE }))
-    }
-  }, [gameState, startGame, resetGame])
-
-  const generateObstacle = useCallback((x: number): Obstacle => {
-    const topHeight = Math.random() * (CANVAS_HEIGHT - OBSTACLE_GAP - 100) + 50
-    return {
-      x,
-      topHeight,
-      bottomHeight: CANVAS_HEIGHT - topHeight - OBSTACLE_GAP,
-      width: OBSTACLE_WIDTH,
-      passed: false,
-    }
-  }, [])
-
-  const checkCollision = useCallback((triangle: TrianglePlayer, obstacles: Obstacle[]): boolean => {
-    // Check ground and ceiling collision
-    if (triangle.y <= 0 || triangle.y >= CANVAS_HEIGHT - TRIANGLE_SIZE) {
-      return true
-    }
-
-    // Check obstacle collision
-    for (const obstacle of obstacles) {
-      if (
-        triangle.x + TRIANGLE_SIZE > obstacle.x &&
-        triangle.x < obstacle.x + obstacle.width &&
-        (triangle.y < obstacle.topHeight || triangle.y + TRIANGLE_SIZE > CANVAS_HEIGHT - obstacle.bottomHeight)
-      ) {
-        return true
-      }
-    }
-
-    return false
-  }, [])
+    const s = gsRef.current
+    if (s === "menu") startGame()
+    else if (s === "gameOver") { tRef.current = { x: 100, y: CANVAS_HEIGHT / 2, velocity: 0 }; obstaclesRef.current = []; scoreRef.current = 0; setScore(0); setGameState("menu"); gsRef.current = "menu" }
+    else tRef.current.velocity = JUMP_FORCE
+  }, [startGame])
 
   const gameLoop = useCallback(() => {
-    if (!gameRunning || gameOver) return
+    if (gsRef.current !== "playing") { animFrameRef.current = requestAnimationFrame(gameLoop); return }
 
-    setTriangle((prev) => {
-      const newTriangle = {
-        ...prev,
-        velocity: prev.velocity + GRAVITY,
-        y: prev.y + prev.velocity,
-      }
+    const t = tRef.current; const obs = obstaclesRef.current
+    t.velocity += GRAVITY; t.y += t.velocity
 
-      return newTriangle
-    })
+    for (const o of obs) o.x -= OBSTACLE_SPEED
+    while (obs.length && obs[0].x + obs[0].width < 0) obs.shift()
+    if (obs.length === 0 || obs[obs.length - 1].x < CANVAS_WIDTH - 200) obs.push(generateObstacle(CANVAS_WIDTH))
+    for (const o of obs) { if (!o.passed && o.x + o.width < t.x) { o.passed = true; scoreRef.current++; setScore(scoreRef.current) } }
 
-    setObstacles((prev) => {
-      let newObstacles = prev.map((obstacle) => ({
-        ...obstacle,
-        x: obstacle.x - OBSTACLE_SPEED,
-      }))
+    if (checkCollision(t, obs)) {
+      gsRef.current = "gameOver"; setGameState("gameOver")
+      if (scoreRef.current > bestScore) setBestScore(scoreRef.current)
+      return
+    }
 
-      // Remove obstacles that are off screen
-      newObstacles = newObstacles.filter((obstacle) => obstacle.x + obstacle.width > 0)
+    animFrameRef.current = requestAnimationFrame(gameLoop)
+  }, [generateObstacle, bestScore])
 
-      // Add new obstacles
-      if (newObstacles.length === 0 || newObstacles[newObstacles.length - 1].x < CANVAS_WIDTH - 200) {
-        newObstacles.push(generateObstacle(CANVAS_WIDTH))
-      }
+  useEffect(() => { gsRef.current = gameState }, [gameState])
+  useEffect(() => { animFrameRef.current = requestAnimationFrame(gameLoop); return () => cancelAnimationFrame(animFrameRef.current) }, [gameLoop])
 
-      // Check for passed obstacles and update score
-      newObstacles.forEach((obstacle) => {
-        if (!obstacle.passed && obstacle.x + obstacle.width < triangle.x) {
-          obstacle.passed = true
-          setScore((prevScore) => prevScore + 1)
-        }
+  useEffect(() => {
+    const canvas = canvasRef.current; if (!canvas) return
+    const ctx = canvas.getContext("2d"); if (!ctx) return
+    let fid: number
+    const draw = () => {
+      const grad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT); grad.addColorStop(0, "#87ceeb"); grad.addColorStop(1, "#e0f6ff")
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
+      ctx.fillStyle = "rgba(255,255,255,0.8)"
+      for (let i = 0; i < 5; i++) { const x = (i * 200 + Date.now() * 0.02) % (CANVAS_WIDTH + 100); const y = 50 + i * 30; ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI * 2); ctx.arc(x + 25, y, 30, 0, Math.PI * 2); ctx.arc(x + 50, y, 20, 0, Math.PI * 2); ctx.fill() }
+      const obs = obstaclesRef.current
+      obs.forEach((o) => {
+        const og = ctx.createLinearGradient(o.x, 0, o.x + o.width, 0); og.addColorStop(0, "#22c55e"); og.addColorStop(1, "#16a34a")
+        ctx.fillStyle = og; ctx.fillRect(o.x, 0, o.width, o.topHeight); ctx.fillRect(o.x, CANVAS_HEIGHT - o.bottomHeight, o.width, o.bottomHeight)
+        ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.fillRect(o.x, 0, 5, o.topHeight); ctx.fillRect(o.x, CANVAS_HEIGHT - o.bottomHeight, 5, o.bottomHeight)
       })
-
-      return newObstacles
-    })
-  }, [gameRunning, gameOver, triangle.x, generateObstacle])
-
-  // Game loop
-  useEffect(() => {
-    const interval = setInterval(gameLoop, 16)
-    return () => clearInterval(interval)
-  }, [gameLoop])
-
-  // Collision detection
-  useEffect(() => {
-    if (gameRunning && checkCollision(triangle, obstacles)) {
-      setGameOver(true)
-      setGameRunning(false)
-      setGameState("gameOver")
-      if (score > bestScore) {
-        setBestScore(score)
-      }
+      const tt = tRef.current
+      ctx.shadowColor = themeColor; ctx.shadowBlur = 10; ctx.fillStyle = themeColor; ctx.beginPath()
+      ctx.moveTo(tt.x, tt.y); ctx.lineTo(tt.x + TRIANGLE_SIZE, tt.y + TRIANGLE_SIZE / 2); ctx.lineTo(tt.x, tt.y + TRIANGLE_SIZE); ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0
+      ctx.fillStyle = "#000"; ctx.font = "bold 32px sans-serif"; ctx.textAlign = "center"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 4
+      ctx.strokeText(`${scoreRef.current}`, CANVAS_WIDTH / 2, 60); ctx.fillText(`${scoreRef.current}`, CANVAS_WIDTH / 2, 60); ctx.textAlign = "left"
+      fid = requestAnimationFrame(draw)
     }
-  }, [triangle, obstacles, gameRunning, checkCollision, score, bestScore])
+    fid = requestAnimationFrame(draw)
+    return () => cancelAnimationFrame(fid)
+  }, [themeColor])
 
-  // Canvas drawing
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    // Clear canvas with gradient background
-    const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT)
-    gradient.addColorStop(0, "#87ceeb")
-    gradient.addColorStop(1, "#e0f6ff")
-    ctx.fillStyle = gradient
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
-
-    // Draw clouds
-    ctx.fillStyle = "rgba(255, 255, 255, 0.8)"
-    for (let i = 0; i < 5; i++) {
-      const x = (i * 200 + Date.now() * 0.02) % (CANVAS_WIDTH + 100)
-      const y = 50 + i * 30
-      ctx.beginPath()
-      ctx.arc(x, y, 20, 0, Math.PI * 2)
-      ctx.arc(x + 25, y, 30, 0, Math.PI * 2)
-      ctx.arc(x + 50, y, 20, 0, Math.PI * 2)
-      ctx.fill()
-    }
-
-    // Draw obstacles with gradient
-    obstacles.forEach((obstacle) => {
-      const obstacleGradient = ctx.createLinearGradient(obstacle.x, 0, obstacle.x + obstacle.width, 0)
-      obstacleGradient.addColorStop(0, "#22c55e")
-      obstacleGradient.addColorStop(1, "#16a34a")
-      ctx.fillStyle = obstacleGradient
-
-      // Top obstacle
-      ctx.fillRect(obstacle.x, 0, obstacle.width, obstacle.topHeight)
-      // Bottom obstacle
-      ctx.fillRect(obstacle.x, CANVAS_HEIGHT - obstacle.bottomHeight, obstacle.width, obstacle.bottomHeight)
-
-      // Add highlight
-      ctx.fillStyle = "rgba(255, 255, 255, 0.3)"
-      ctx.fillRect(obstacle.x, 0, 5, obstacle.topHeight)
-      ctx.fillRect(obstacle.x, CANVAS_HEIGHT - obstacle.bottomHeight, 5, obstacle.bottomHeight)
-    })
-
-    // Draw triangle with glow effect
-    ctx.shadowColor = themeColor
-    ctx.shadowBlur = 10
-    ctx.fillStyle = themeColor
-    ctx.beginPath()
-    ctx.moveTo(triangle.x, triangle.y)
-    ctx.lineTo(triangle.x + TRIANGLE_SIZE, triangle.y + TRIANGLE_SIZE / 2)
-    ctx.lineTo(triangle.x, triangle.y + TRIANGLE_SIZE)
-    ctx.closePath()
-    ctx.fill()
-    ctx.shadowBlur = 0
-
-    // Draw score with better styling
-    ctx.fillStyle = "#000"
-    ctx.font = "bold 32px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-    ctx.textAlign = "center"
-    ctx.strokeStyle = "#fff"
-    ctx.lineWidth = 4
-    ctx.strokeText(`${score}`, CANVAS_WIDTH / 2, 60)
-    ctx.fillText(`${score}`, CANVAS_WIDTH / 2, 60)
-    ctx.textAlign = "left"
-  }, [triangle, obstacles, score, themeColor])
-
-  // Keyboard and click controls
-  useEffect(() => {
-    const handleKeyPress = (event: KeyboardEvent) => {
-      if (event.code === "Space" || event.code === "ArrowUp") {
-        event.preventDefault()
-        jump()
-      }
-    }
-
-    const handleClick = () => jump()
-
-    window.addEventListener("keydown", handleKeyPress)
-    const canvas = canvasRef.current
-    canvas?.addEventListener("click", handleClick)
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyPress)
-      canvas?.removeEventListener("click", handleClick)
-    }
+    const k = (e: KeyboardEvent) => { if (e.code === "Space" || e.code === "ArrowUp") { e.preventDefault(); jump() } }
+    const c = () => jump()
+    window.addEventListener("keydown", k); canvasRef.current?.addEventListener("click", c)
+    return () => { window.removeEventListener("keydown", k); canvasRef.current?.removeEventListener("click", c) }
   }, [jump])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex flex-col items-center justify-center p-4">
       <div className="relative w-full max-w-4xl">
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_WIDTH}
-          height={CANVAS_HEIGHT}
-          className="border-2 border-amber-200 rounded-xl shadow-2xl cursor-pointer mx-auto block bg-white"
-          onClick={jump}
-        />
-
+        <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="border-2 border-amber-200 rounded-xl shadow-2xl cursor-pointer mx-auto block bg-white" onClick={jump} />
         {gameState === "menu" && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm rounded-xl">
             <Card className="p-8 text-center border-amber-200 shadow-xl w-96">
-              <div className="mb-6">
-                <div
-                  className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center shadow-lg"
-                  style={{ backgroundColor: themeColor }}
-                >
-                  <Triangle className="w-8 h-8 text-white" />
-                </div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Flappy Triangle</h1>
-                <p className="text-gray-600 mb-4">Navigate through the obstacles and score high!</p>
-                <div className="bg-amber-50 rounded-lg p-4 text-left text-sm text-gray-700 space-y-2">
-                  <div className="font-semibold text-amber-800">Controls:</div>
-                  <div>
-                    • <kbd className="px-2 py-1 bg-white rounded border text-xs">Space</kbd> or{" "}
-                    <kbd className="px-2 py-1 bg-white rounded border text-xs">↑</kbd> to jump
-                  </div>
-                  <div>
-                    • <kbd className="px-2 py-1 bg-white rounded border text-xs">Click</kbd> anywhere to jump
-                  </div>
-                  <div>• Avoid the green pipes!</div>
-                </div>
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center shadow-lg" style={{ backgroundColor: themeColor }}><Triangle className="w-8 h-8 text-white" /></div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Flappy Triangle</h1>
+              <p className="text-gray-600 mb-4">Navigate through obstacles and score high!</p>
+              <div className="bg-amber-50 rounded-lg p-4 text-left text-sm text-gray-700 space-y-2 mb-6">
+                <div className="font-semibold text-amber-800">Controls:</div>
+                <div><kbd className="px-2 py-1 bg-white rounded border text-xs">Space</kbd> or <kbd className="px-2 py-1 bg-white rounded border text-xs">&#8593;</kbd> to jump</div>
+                <div><kbd className="px-2 py-1 bg-white rounded border text-xs">Click</kbd> anywhere to jump</div>
               </div>
-              <Button
-                onClick={startGame}
-                style={{ backgroundColor: themeColor }}
-                className="text-white px-8 py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
-              >
-                Start Flying
-              </Button>
-              {bestScore > 0 && (
-                <div className="mt-4 flex items-center justify-center gap-2 text-amber-700">
-                  <Trophy className="w-4 h-4" />
-                  <span className="text-sm font-medium">Best: {bestScore}</span>
-                </div>
-              )}
+              <Button onClick={startGame} style={{ backgroundColor: themeColor }} className="text-white px-8 py-3 text-lg font-semibold shadow-lg">Start Flying</Button>
+              {bestScore > 0 && <div className="mt-4 flex items-center justify-center gap-2 text-amber-700"><Trophy className="w-4 h-4" /><span className="text-sm font-medium">Best: {bestScore}</span></div>}
             </Card>
           </div>
         )}
-
         {gameState === "gameOver" && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm rounded-xl">
             <Card className="p-8 text-center border-amber-200 shadow-xl w-96">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Game Over!</h2>
-              <div className="space-y-4 mb-6">
-                <div className="bg-amber-50 rounded-lg p-4">
-                  <div className="text-3xl font-bold mb-2" style={{ color: themeColor }}>
-                    {score}
-                  </div>
-                  <div className="text-sm text-gray-600">Final Score</div>
-                </div>
-                {score === bestScore && score > 0 && (
-                  <div className="flex items-center justify-center gap-2 text-amber-600 bg-amber-50 rounded-lg p-2">
-                    <Trophy className="w-5 h-5" />
-                    <span className="font-semibold">New Best Score!</span>
-                  </div>
-                )}
-                {bestScore > 0 && score !== bestScore && (
-                  <div className="text-sm text-gray-500">Best Score: {bestScore}</div>
-                )}
-              </div>
+              <div className="bg-amber-50 rounded-lg p-4 mb-4"><div className="text-3xl font-bold" style={{ color: themeColor }}>{score}</div><div className="text-sm text-gray-600">Final Score</div></div>
+              {score === bestScore && score > 0 && <div className="flex items-center justify-center gap-2 text-amber-600 bg-amber-50 rounded-lg p-2 mb-4"><Trophy className="w-5 h-5" /><span className="font-semibold">New Best!</span></div>}
+              {bestScore > 0 && score !== bestScore && <div className="text-sm text-gray-500 mb-4">Best: {bestScore}</div>}
               <div className="flex gap-3 justify-center">
-                <Button
-                  onClick={startGame}
-                  style={{ backgroundColor: themeColor }}
-                  className="text-white px-6 py-2 font-semibold shadow-lg"
-                >
-                  Play Again
-                </Button>
-                <Button
-                  onClick={resetGame}
-                  variant="outline"
-                  className="border-amber-200 text-amber-700 hover:bg-amber-50 px-6 py-2 font-semibold bg-transparent"
-                >
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Menu
-                </Button>
+                <Button onClick={startGame} style={{ backgroundColor: themeColor }} className="text-white px-6 py-2 font-semibold shadow-lg">Play Again</Button>
+                <Button onClick={() => { setGameState("menu"); scoreRef.current = 0; setScore(0); obstaclesRef.current = []; tRef.current = { x: 100, y: CANVAS_HEIGHT / 2, velocity: 0 }; gsRef.current = "menu" }} variant="outline" className="border-amber-200 text-amber-700 hover:bg-amber-50 px-6 py-2 font-semibold">Menu</Button>
               </div>
             </Card>
           </div>
         )}
-      </div>
-
-      <div className="mt-6 text-center">
-        <p className="text-sm text-amber-700 font-medium">
-          {gameState === "playing" ? "Keep flying! Avoid the pipes!" : "Click anywhere or press Space to jump"}
-        </p>
       </div>
     </div>
   )

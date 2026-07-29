@@ -6,7 +6,7 @@ import Link from "next/link"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { getGameById, gameRegistry } from "@/lib/game-registry"
-import { getIcon } from "@/lib/icons"
+import GameIcon from "@/components/game-icon"
 import { getGameComponent, isValidGameId } from "@/lib/game-loader"
 import { ArrowLeft, Keyboard, MousePointerClick, Star, Clock, Users } from "lucide-react"
 
@@ -43,13 +43,12 @@ export default function GamePageClient({ params }: { params: Promise<{ id: strin
     )
   }
 
-  const Icon = getIcon(game.icon)
   const GameComp = getGameComponent(id)
 
   const relatedGames = gameRegistry
     .filter((g) => g.id !== id && g.category === game.category)
     .slice(0, 6)
-    .map((g) => ({ id: g.id, color: g.color, iconName: g.icon, title: g.title }))
+    .map((g) => ({ id: g.id, color: g.color, title: g.title }))
 
   return (
     <div className="flex flex-col">
@@ -62,7 +61,7 @@ export default function GamePageClient({ params }: { params: Promise<{ id: strin
                 Back
               </Button>
               <div className={`w-10 h-10 rounded-lg ${game.color} flex items-center justify-center text-white shrink-0`}>
-                <Icon className="w-5 h-5" />
+                <GameIcon gameId={game.id} size={20} />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-foreground">{game.title}</h1>

@@ -6,12 +6,11 @@ import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { gameRegistry, categories } from "@/lib/game-registry"
-import { getIcon } from "@/lib/icons"
+import GameIcon from "@/components/game-icon"
 import type { GameMeta } from "@/lib/types"
 import { Search, Play, Star, Grid3X3, List } from "lucide-react"
 
 const GameCard = memo(function GameCard({ game }: { game: GameMeta }) {
-  const Icon = getIcon(game.icon)
   return (
     <Link href={`/games/${game.id}`} className="group block h-full">
       <div className="relative overflow-hidden rounded-xl border bg-card hover:border-primary/30 hover:shadow-lg transition-all duration-300 p-6 h-full flex flex-col">
@@ -21,7 +20,7 @@ const GameCard = memo(function GameCard({ game }: { game: GameMeta }) {
           </div>
         )}
         <div className={`w-12 h-12 rounded-xl ${game.color} flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform`}>
-          <Icon className="w-6 h-6" />
+          <GameIcon gameId={game.id} size={24} />
         </div>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-semibold text-foreground">{game.title}</h3>

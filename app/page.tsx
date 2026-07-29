@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { gameRegistry, categories } from "@/lib/game-registry"
-import { getIcon } from "@/lib/icons"
+import GameIcon from "@/components/game-icon"
 import { Play, ArrowRight, Trophy, Gamepad2, Zap, Users, Brain, Timer, Target, BookOpen, LayoutGrid } from "lucide-react"
 
 const categoryIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -83,16 +83,14 @@ export default function HomePage() {
           <p className="text-muted-foreground">Check out our newest additions</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featuredGames.map((game) => {
-            const Icon = getIcon(game.icon)
-            return (
+          {featuredGames.map((game) => (
               <Link key={game.id} href={`/games/${game.id}`} className="group">
                 <div className="relative overflow-hidden rounded-xl border bg-card hover:border-primary/30 hover:shadow-lg transition-all duration-300 p-6 h-full">
                   <div className="absolute top-3 right-3 bg-primary text-primary-foreground text-xs font-medium px-2 py-1 rounded-full z-10">
                     NEW
                   </div>
                   <div className={`w-12 h-12 rounded-xl ${game.color} flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform`}>
-                    <Icon className="w-6 h-6" />
+                    <GameIcon gameId={game.id} size={24} />
                   </div>
                   <h3 className="text-lg font-semibold text-foreground mb-2">{game.title}</h3>
                   <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{game.description}</p>
@@ -102,8 +100,7 @@ export default function HomePage() {
                   </div>
                 </div>
               </Link>
-            )
-          })}
+            ))}
         </div>
         <div className="text-center mt-10">
           <Link href="/games">
