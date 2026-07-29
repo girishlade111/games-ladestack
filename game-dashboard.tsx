@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import VirtualGamepad from "@/components/virtual-gamepad"
+import { useState, lazy, Suspense } from "react"
+import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardTitle } from "@/components/ui/card"
 import {
@@ -24,26 +24,29 @@ import {
   Coins,
   Circle,
 } from "lucide-react"
-import FlappyTriangle from "@/components/games/flappy-triangle"
-import DinoGame from "@/components/games/dino-game"
-import SnakeGame from "@/components/games/snake-game"
-import PongGame from "@/components/games/pong-game"
-import ReactionGame from "@/components/games/reaction-game"
-import TetrisGame from "@/components/games/tetris-game"
-import BreakoutGame from "@/components/games/breakout-game"
-import OrbitDefense from "@/components/games/orbit-defense"
-import ColorMatchGame from "@/components/games/color-match-game"
-import SpaceInvadersGame from "@/components/games/space-invaders-game"
-import TicTacToeGame from "@/components/games/tic-tac-toe-game"
-import MemoryMatchGame from "@/components/games/memory-match-game"
-import MinesweeperGame from "@/components/games/minesweeper-game"
-import WordScrambleGame from "@/components/games/word-scramble-game"
-import BubblePopGame from "@/components/games/bubble-pop-game"
-import CoinCollectorGame from "@/components/games/coin-collector-game"
-import ConnectFourGame from "@/components/games/connect-four-game"
-import WhackAMoleGame from "@/components/games/whack-a-mole-game"
-import SimonSaysGame from "@/components/games/simon-says-game"
-import Puzzle2048Game from "@/components/games/puzzle-2048-game"
+
+const VirtualGamepad = dynamic(() => import("@/components/virtual-gamepad"), { ssr: false })
+
+const FlappyTriangle = lazy(() => import("@/components/games/flappy-triangle"))
+const DinoGame = lazy(() => import("@/components/games/dino-game"))
+const SnakeGame = lazy(() => import("@/components/games/snake-game"))
+const PongGame = lazy(() => import("@/components/games/pong-game"))
+const ReactionGame = lazy(() => import("@/components/games/reaction-game"))
+const TetrisGame = lazy(() => import("@/components/games/tetris-game"))
+const BreakoutGame = lazy(() => import("@/components/games/breakout-game"))
+const OrbitDefense = lazy(() => import("@/components/games/orbit-defense"))
+const ColorMatchGame = lazy(() => import("@/components/games/color-match-game"))
+const SpaceInvadersGame = lazy(() => import("@/components/games/space-invaders-game"))
+const TicTacToeGame = lazy(() => import("@/components/games/tic-tac-toe-game"))
+const MemoryMatchGame = lazy(() => import("@/components/games/memory-match-game"))
+const MinesweeperGame = lazy(() => import("@/components/games/minesweeper-game"))
+const WordScrambleGame = lazy(() => import("@/components/games/word-scramble-game"))
+const BubblePopGame = lazy(() => import("@/components/games/bubble-pop-game"))
+const CoinCollectorGame = lazy(() => import("@/components/games/coin-collector-game"))
+const ConnectFourGame = lazy(() => import("@/components/games/connect-four-game"))
+const WhackAMoleGame = lazy(() => import("@/components/games/whack-a-mole-game"))
+const SimonSaysGame = lazy(() => import("@/components/games/simon-says-game"))
+const Puzzle2048Game = lazy(() => import("@/components/games/puzzle-2048-game"))
 
 type GameType =
   | "menu"
@@ -333,7 +336,16 @@ export default function GameDashboard() {
           </Button>
         </div>
         <div className="w-full flex-1 flex flex-col items-center justify-start pb-40 pt-4">
-          {renderGame()}
+          <Suspense
+            fallback={
+              <div className="flex flex-col items-center justify-center p-16 text-center">
+                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="text-sm text-muted-foreground font-medium">Loading game assets...</p>
+              </div>
+            }
+          >
+            {renderGame()}
+          </Suspense>
         </div>
         <VirtualGamepad />
       </div>
