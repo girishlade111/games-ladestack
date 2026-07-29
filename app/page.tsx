@@ -2,9 +2,8 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { gameRegistry, categories } from "@/lib/game-registry"
-import GameLogo from "@/components/game-logo"
-import { preloadGame } from "@/lib/game-loader"
-import { Play, ArrowRight, Trophy, Gamepad2, Zap, Users, Brain, Timer, Target, BookOpen, LayoutGrid } from "lucide-react"
+import FeaturedGameCard from "@/components/featured-game-card"
+import { ArrowRight, Trophy, Gamepad2, Zap, Users, Brain, Timer, Target, BookOpen, LayoutGrid } from "lucide-react"
 
 export const metadata: Metadata = {
   title: "GameHub - Play 50+ Free Online Browser Games (No Downloads)",
