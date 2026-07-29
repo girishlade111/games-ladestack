@@ -1,14 +1,17 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
+import { ThemeProvider } from "@/components/theme-provider"
+import Header from "@/components/layout/header"
+import Footer from "@/components/layout/footer"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "v0 Mini Games",
-  description: "A collection of fun mini games built with v0.dev",
-    generator: 'v0.dev'
+  title: "GameHub - Play Free Browser Games Online",
+  description: "Play hundreds of free online games instantly in your browser. No downloads, no sign-up required. Arcade, puzzle, strategy, action games and more.",
+  keywords: ["online games", "free games", "browser games", "mini games", "arcade", "puzzle", "strategy"],
 }
 
 export default function RootLayout({
@@ -17,8 +20,16 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <div className="relative flex min-h-screen flex-col">
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </div>
+        </ThemeProvider>
+      </body>
     </html>
   )
 }
