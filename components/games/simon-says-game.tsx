@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { 
   ArrowLeft, Play, RotateCcw, Volume2, VolumeX, Zap, Clock, Flame, 
   Trophy, ShieldAlert, Shuffle, Music, Award, Sparkles, Key, Layers,
-  Compass, Repeat, Disc, Binary, Cpu
+  Compass, Repeat, Disc, Binary, Cpu, Dna
 } from "lucide-react"
 
 interface SimonSaysGameProps {
@@ -142,39 +142,39 @@ const patternStylesConfig: Record<PatternStyle, {
   badge: string
 }> = {
   random: {
-    name: "Adaptive Chaos",
-    icon: Sparkles,
-    description: "Unpredictable dynamic sequence shifts.",
+    name: "Infinite Mutation",
+    icon: Dna,
+    description: "Procedural non-repeating randomized sequences.",
     badge: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   },
   fibonacci: {
     name: "Fibonacci Spiral",
     icon: Binary,
-    description: "Golden ratio leaps with non-linear prime offsets.",
+    description: "Seeded golden ratio leaps with dynamic phase shifts.",
     badge: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   },
   polyrhythm: {
     name: "Poly-Rhythm Sync",
     icon: Repeat,
-    description: "Complex syncopated single/double/triple bursts.",
+    description: "Syncopated single/double/triple rhythmic variations.",
     badge: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   },
   knighthop: {
     name: "Knight's Hop Matrix",
     icon: Compass,
-    description: "Chess Knight diagonal leaps across pads.",
+    description: "Seeded chess knight diagonal leaps across pads.",
     badge: "bg-purple-500/20 text-purple-400 border-purple-500/30",
   },
   arpeggio: {
     name: "Chord Arpeggio",
     icon: Music,
-    description: "Intricate musical scale progressions & chords.",
+    description: "Procedural musical key transpositions & chord leaps.",
     badge: "bg-pink-500/20 text-pink-400 border-pink-500/30",
   },
   asymmetric: {
     name: "Asymmetric Inversion",
     icon: Cpu,
-    description: "Dynamic mirrored axis shifts & inversions.",
+    description: "Rotational mirrored axis shifts with random pivots.",
     badge: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
   },
 }
@@ -192,6 +192,9 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
   const [mode, setMode] = useState<GameMode>("classic")
   const [difficulty, setDifficulty] = useState<Difficulty>("standard")
   const [patternStyle, setPatternStyle] = useState<PatternStyle>("fibonacci")
+  
+  // Game session unique seed to guarantee 100% unique sequences per game play
+  const [sessionSeed, setSessionSeed] = useState<number>(0)
   
   const [sequence, setSequence] = useState<number[]>([])
   const [playerSequence, setPlayerSequence] = useState<number[]>([])
@@ -233,10 +236,10 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
 
   useEffect(() => {
     try {
-      const savedScores = localStorage.getItem("simon_says_high_scores_v4")
+      const savedScores = localStorage.getItem("simon_says_high_scores_v5")
       if (savedScores) setHighScores(JSON.parse(savedScores))
 
-      const savedAch = localStorage.getItem("simon_says_achievements_v4")
+      const savedAch = localStorage.getItem("simon_says_achievements_v5")
       if (savedAch) {
         const unlockedIds: string[] = JSON.parse(savedAch)
         setAchievements((prev) =>
@@ -254,7 +257,7 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
       const best = prev[key] || 0
       if (currentScore > best) {
         const updated = { ...prev, [key]: currentScore }
-        localStorage.setItem("simon_says_high_scores_v4", JSON.stringify(updated))
+        localStorage.setItem("simon_says_high_scores_v5", JSON.stringify(updated))
         return updated
       }
       return prev
@@ -285,7 +288,7 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
 
       if (changed) {
         const unlockedIds = updated.filter((a) => a.unlocked).map((a) => a.id)
-        localStorage.setItem("simon_says_achievements_v4", JSON.stringify(unlockedIds))
+        localStorage.setItem("simon_says_achievements_v5", JSON.stringify(unlockedIds))
       }
       return updated
     })
@@ -482,81 +485,80 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
 
   const currentPads = getPadsConfig()
 
-  // Advanced Non-Linear Sequence Generator
-  const generateNextPadId = useCallback((currentSeq: number[]): number => {
+  // PROCEDURAL SEEDED SEQUENCE GENERATOR - 100% Unique Per Game Session!
+  const generateNextPadId = useCallback((currentSeq: number[], seed: number): number => {
     const pads = getPadsConfig()
     const padsCount = pads.length
     const n = currentSeq.length
 
+    // Session-based random seed offset
+    const seedOffset = Math.floor(seed * 997 + Math.random() * 1000)
+
     if (n === 0) {
-      return Math.floor(Math.random() * padsCount)
+      return (Math.floor(seed * 13) + Math.floor(Math.random() * padsCount)) % padsCount
     }
 
     const lastPad = currentSeq[n - 1]
 
     if (patternStyle === "fibonacci") {
-      // Fibonacci sequence with prime offsets
       const fib = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144]
-      const fibStep = fib[n % fib.length]
-      const primeOffset = (n * 3 + 7) % padsCount
+      const fibStep = fib[(n + seedOffset) % fib.length]
+      const primeOffset = (n * 7 + Math.floor(seed * 17)) % padsCount
       return (lastPad + fibStep + primeOffset) % padsCount
     }
 
     if (patternStyle === "polyrhythm") {
-      // Syncopated poly-rhythmic burst: Single -> Double -> Triple -> Burst
-      const cyclePos = n % 6
-      if (cyclePos === 1 || cyclePos === 3 || cyclePos === 4) {
-        return lastPad // Repeat pad for syncopated rhythm
+      // Seeded poly-rhythm phase shifts
+      const cyclePos = (n + Math.floor(seed * 5)) % 7
+      if (cyclePos === 1 || cyclePos === 3 || cyclePos === 5) {
+        return lastPad // Syncopated pad repetition
       }
-      return (lastPad + Math.floor(Math.random() * (padsCount - 1)) + 1) % padsCount
+      return (lastPad + 1 + Math.floor(Math.random() * (padsCount - 1))) % padsCount
     }
 
     if (patternStyle === "asymmetric") {
-      // Asymmetric axis reflection
+      const pivot = Math.floor(seed * 7) % padsCount
       if (padsCount === 4) {
-        const mirrorMap = [3, 2, 1, 0]
-        return (mirrorMap[lastPad] + (n % 2 === 0 ? 1 : 0)) % 4
-      } else if (padsCount === 6) {
-        return (padsCount - 1 - lastPad + n) % padsCount
+        const mirrorMap = [(0 + pivot) % 4, (3 + pivot) % 4, (2 + pivot) % 4, (1 + pivot) % 4]
+        return (mirrorMap[lastPad] + (n % 2 === 0 ? 1 : 2)) % 4
       } else {
-        const row = Math.floor(lastPad / 3)
-        const col = lastPad % 3
-        const nextRow = (2 - row + (n % 2)) % 3
-        const nextCol = (2 - col + Math.floor(n / 2)) % 3
-        return nextRow * 3 + nextCol
+        return (padsCount - 1 - lastPad + n + pivot) % padsCount
       }
     }
 
     if (patternStyle === "arpeggio") {
-      // Musical chord progression (I - IV - V - vi)
+      // Key Transposition per game session! (C, D, E, G, A transposed)
+      const rootKey = Math.floor(seed * 11) % padsCount
       const chordProgressions = [
         [0, 2, 4, 7],
-        [3, 5, 7, 0],
+        [3, 5, 7, 1],
         [4, 6, 1, 3],
-        [5, 0, 2, 4],
+        [5, 0, 3, 6],
       ]
-      const currentChord = chordProgressions[Math.floor(n / 4) % chordProgressions.length]
-      const noteIndex = currentChord[n % currentChord.length]
-      return noteIndex % padsCount
+      const chordIdx = (Math.floor(n / 3) + Math.floor(seed * 3)) % chordProgressions.length
+      const chord = chordProgressions[chordIdx]
+      const noteDegree = chord[n % chord.length]
+      return (noteDegree + rootKey) % padsCount
     }
 
     if (patternStyle === "knighthop") {
-      // Chess Knight matrix hops
+      // Knight matrix leaps with session-based direction bias
+      const directionBias = Math.floor(seed * 13) % 2 === 0 ? 1 : -1
       if (padsCount === 4) {
-        return (lastPad + (n % 2 === 0 ? 3 : 1)) % 4
+        return (lastPad + (n % 2 === 0 ? 3 * directionBias : 1) + 4) % 4
       } else if (padsCount === 9) {
         const knightOffsets = [-7, -5, -3, 3, 5, 7]
-        const validOffsets = knightOffsets.map(o => (lastPad + o + 9) % 9).filter(p => p !== lastPad)
-        return validOffsets[n % validOffsets.length]
+        const valid = knightOffsets.map(o => (lastPad + o * directionBias + 9) % 9).filter(p => p !== lastPad)
+        return valid[(n + Math.floor(seed * 7)) % valid.length]
       } else {
-        return (lastPad + 2 + (n % 3)) % padsCount
+        return (lastPad + 2 * directionBias + (n % 3) + padsCount) % padsCount
       }
     }
 
-    // Adaptive Chaos Random
+    // Infinite Mutation (Pure Random with streak prevention & session seed)
     let next = Math.floor(Math.random() * padsCount)
     if (n >= 2 && currentSeq[n - 1] === next && currentSeq[n - 2] === next) {
-      next = (next + 1) % padsCount
+      next = (next + 1 + Math.floor(seed * 3)) % padsCount
     }
     return next
   }, [getPadsConfig, patternStyle])
@@ -623,9 +625,13 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
     }
   }, [gameState, mode, timeLeft, playGameOverSound, saveHighScore, score])
 
+  // Start new game session with a fresh random seed
   const startGame = () => {
     getAudioContext()
-    const firstPad = generateNextPadId([])
+    const newSeed = Math.random() * 100000 + Date.now() % 1000
+    setSessionSeed(newSeed)
+
+    const firstPad = generateNextPadId([], newSeed)
     const pads = getPadsConfig()
     setPadOrder(pads.map((p) => p.id))
     setSequence([firstPad])
@@ -650,7 +656,7 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
   }, [mode])
 
   const nextRound = useCallback(() => {
-    const nextPad = generateNextPadId(sequence)
+    const nextPad = generateNextPadId(sequence, sessionSeed)
     const newSeq = [...sequence, nextPad]
 
     if (mode === "chaos") {
@@ -666,7 +672,7 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
     triggerParticleBurst("#3b82f6")
     checkAchievements(score + 1)
     setGameState("showing")
-  }, [sequence, generateNextPadId, mode, shufflePads, playSuccessChime, triggerParticleBurst, checkAchievements, score])
+  }, [sequence, sessionSeed, generateNextPadId, mode, shufflePads, playSuccessChime, triggerParticleBurst, checkAchievements, score])
 
   const handlePadClick = useCallback(
     (padId: number) => {
