@@ -22,7 +22,10 @@ export const metadata: Metadata = {
 export default function GamesPage() {
   return (
     <>
-      <CollectionPageJsonLd count={gameRegistry.length} />
+      <CollectionPageJsonLd
+        count={gameRegistry.length}
+        games={gameRegistry.map((g) => ({ id: g.id, title: g.title }))}
+      />
       <BreadcrumbJsonLd
         items={[
           { name: "Home", url: "/" },
