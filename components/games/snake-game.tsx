@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
+  Gamepad2,
 } from "lucide-react"
 
 // Types & Interfaces
