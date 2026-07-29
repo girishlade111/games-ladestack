@@ -9,6 +9,9 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  serverRuntimeConfig: {
+    allowedHosts: ['.monkeycode-ai.live'],
+  },
 }
 
 export default nextConfig
