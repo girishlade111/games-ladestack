@@ -39,7 +39,7 @@ interface CoinCollectorGameProps {
 
 export default function CoinCollectorGame({ onBack, themeColor }: CoinCollectorGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const animationRef = useRef<number>()
+  const animationRef = useRef<number | null>(null)
   const keysRef = useRef<Set<string>>(new Set())
 
   const [gameState, setGameState] = useState<"menu" | "playing" | "gameOver">("menu")

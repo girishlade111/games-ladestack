@@ -37,7 +37,7 @@ const COLORS = [
 
 export default function ColorMatchGame({ onBack, themeColor }: ColorMatchGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const animationRef = useRef<number>()
+  const animationRef = useRef<number | null>(null)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const [gameState, setGameState] = useState<"menu" | "playing" | "gameOver">("menu")
