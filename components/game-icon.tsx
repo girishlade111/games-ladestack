@@ -1,4 +1,4 @@
-"use client"
+import type React from "react"
 
 interface GameIconProps { gameId: string; className?: string; size?: number }
 
@@ -7,7 +7,7 @@ export default function GameIcon({ gameId, className = "", size = 24 }: GameIcon
   const h = s / 2
   const stroke = "currentColor"
 
-  const icons: Record<string, JSX.Element> = {
+  const icons: Record<string, React.ReactNode> = {
     snake: (
       <svg viewBox="0 0 24 24" width={s} height={s} fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 12a2 2 0 1 0 0-4 6 6 0 0 0 0 8h3l3 3h8M16 12v-3a2 2 0 0 1 2-2h0M3 12h0"/>
