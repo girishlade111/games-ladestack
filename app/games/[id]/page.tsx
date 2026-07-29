@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { Suspense } from "react"
 import GamePageClient from "./game-page-client"
 import { gameRegistry, getGameById } from "@/lib/game-registry"
-import { VideoGameJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld"
+import { VideoGameJsonLd, BreadcrumbJsonLd, FAQPageJsonLd } from "@/components/seo/json-ld"
 
 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://games-ladestack.vercel.app"
 
@@ -91,6 +91,21 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
   const { id } = await params
   const game = getGameById(id)
 
+  const faqItems = game ? [
+    {
+      question: `Is ${game.title} free to play online?`,
+      answer: `Yes! ${game.title} is completely free to play in your browser with zero paywalls or mandatory sign-ups.`
+    },
+    {
+      question: `Do I need to download or install software to play ${game.title}?`,
+      answer: `No downloads or installation are needed. It runs instantly inside modern HTML5 compliant web browsers.`
+    },
+    {
+      question: `Does ${game.title} support mobile phones and tablets?`,
+      answer: `Yes, ${game.title} is fully optimized for mobile touchscreens as well as desktop keyboards and mice.`
+    }
+  ] : []
+
   return (
     <>
       {game && (
@@ -111,6 +126,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
               { name: game.title, url: `/games/${game.id}` },
             ]}
           />
+          <FAQPageJsonLd mainEntity={faqItems} />
         </>
       )}
       <Suspense fallback={<GameSkeleton />}>
