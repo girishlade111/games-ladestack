@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 /**
  * Per-game brand logos: a gradient badge plus a purpose-drawn geometric mark.
  * Marks are authored on a 32x32 grid, white on the gradient, and receive the
@@ -9,7 +11,7 @@
 interface Brand {
   from: string
   to: string
-  mark: (deep: string) => JSX.Element
+  mark: (deep: string) => React.ReactElement
 }
 
 const HEX = (cx: number, cy: number, r: number) => {

@@ -70,7 +70,7 @@ function applyMove(board: Board, idx: number, flips: number[], player: Cell): Bo
 }
 
 function count(board: Board, player: Cell): number {
-  return board.reduce((n, c) => n + (c === player ? 1 : 0), 0)
+  return board.filter((c) => c === player).length
 }
 
 export default function ReversiGame({ themeColor = "#047857" }: { onBack?: () => void; themeColor?: string }) {
