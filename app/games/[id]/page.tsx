@@ -1,5 +1,12 @@
 import { Suspense } from "react"
 import GamePageClient from "./game-page-client"
+import { gameRegistry } from "@/lib/game-registry"
+
+export function generateStaticParams() {
+  return gameRegistry.map((game) => ({
+    id: game.id,
+  }))
+}
 
 export default function GamePage({ params }: { params: Promise<{ id: string }> }) {
   return (
