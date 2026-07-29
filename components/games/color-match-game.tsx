@@ -1088,7 +1088,7 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
 
           {/* Menu Overlay */}
           {gameState === "menu" && (
-            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6 z-20">
+            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-start overflow-y-auto p-6 z-20">
               <Card className="w-full max-w-lg bg-slate-900/90 border-slate-800 text-slate-100 p-6 shadow-2xl space-y-6">
                 <div className="text-center space-y-2">
                   <div
@@ -1184,7 +1184,7 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
 
           {/* Game Over Overlay */}
           {gameState === "gameOver" && (
-            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6 z-20">
+            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-start overflow-y-auto p-6 z-20">
               <Card className="w-full max-w-md bg-slate-900/95 border-slate-800 text-slate-100 p-6 shadow-2xl space-y-6 text-center">
                 <div className="space-y-1">
                   <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-pink-500/20 text-pink-400 mb-2 border border-pink-500/30">

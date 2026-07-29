@@ -108,7 +108,7 @@ export default function CardWarGame({ themeColor = "#1e293b" }: { onBack?: () =>
   return (
     <div className="flex flex-col items-center min-h-[550px] px-4">
       {phase === "menu" && (
-        <div className="text-center max-w-md py-12">
+        <div className="text-center max-w-md my-auto py-12">
           <div className="w-20 h-20 rounded-2xl mx-auto mb-6 flex items-center justify-center" style={{ backgroundColor: themeColor }}>
             <span className="text-3xl">⚔️</span>
           </div>
@@ -129,7 +129,7 @@ export default function CardWarGame({ themeColor = "#1e293b" }: { onBack?: () =>
       )}
 
       {phase !== "menu" && (
-        <div className="py-6 w-full max-w-lg">
+        <div className="py-6 w-full max-w-lg my-auto">
           <div className="flex justify-between items-center mb-6">
             <div className="text-center">
               <div className="text-xs text-muted-foreground">Your deck</div>

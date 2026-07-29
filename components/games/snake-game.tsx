@@ -1199,7 +1199,7 @@ export default function SnakeGame({
 
           {/* SETUP SCREEN OVERLAY (Before starting game) */}
           {!hasStarted && (
-            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 space-y-5 animate-fade-in">
+            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-start overflow-y-auto p-6 text-center z-20 space-y-5 animate-fade-in">
               <div className="space-y-1">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold uppercase tracking-wider">
                   <Gamepad2 className="w-3.5 h-3.5" /> Next-Gen Arcade
@@ -1211,7 +1211,7 @@ export default function SnakeGame({
               </div>
 
               {/* Difficulty Selection */}
-              <div className="w-full max-w-md space-y-2">
+              <div className="w-full max-w-md my-auto space-y-2">
                 <div className="text-xs font-bold uppercase tracking-wider text-slate-400 text-left">
                   Difficulty Level
                 </div>
@@ -1240,7 +1240,7 @@ export default function SnakeGame({
               </div>
 
               {/* Mode Selection */}
-              <div className="w-full max-w-md space-y-2">
+              <div className="w-full max-w-md my-auto space-y-2">
                 <div className="text-xs font-bold uppercase tracking-wider text-slate-400 text-left">
                   Game Mode
                 </div>
@@ -1266,7 +1266,7 @@ export default function SnakeGame({
               </div>
 
               {/* Theme Selection */}
-              <div className="w-full max-w-md space-y-2">
+              <div className="w-full max-w-md my-auto space-y-2">
                 <div className="text-xs font-bold uppercase tracking-wider text-slate-400 text-left">
                   Visual Theme
                 </div>
@@ -1306,14 +1306,14 @@ export default function SnakeGame({
 
           {/* PAUSE OVERLAY */}
           {hasStarted && isPaused && !gameOver && (
-            <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 space-y-4 animate-fade-in">
+            <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-start overflow-y-auto p-6 text-center z-20 space-y-4 animate-fade-in">
               <div className="p-3 rounded-full bg-slate-900 border border-slate-800 text-cyan-400 mb-1">
                 <Pause className="w-8 h-8" />
               </div>
               <h2 className="text-2xl font-bold text-white">GAME PAUSED</h2>
               <p className="text-xs text-slate-400">Take a breather! Resume whenever you are ready.</p>
 
-              <div className="flex flex-col gap-2.5 w-full max-w-xs pt-2">
+              <div className="flex flex-col gap-2.5 w-full max-w-xs my-auto pt-2">
                 <Button
                   onClick={() => setIsPaused(false)}
                   className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
@@ -1329,7 +1329,7 @@ export default function SnakeGame({
 
           {/* GAME OVER OVERLAY */}
           {gameOver && (
-            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 space-y-4 animate-fade-in">
+            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-start overflow-y-auto p-6 text-center z-20 space-y-4 animate-fade-in">
               <div className="p-3 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400">
                 <Shield className="w-8 h-8" />
               </div>
@@ -1339,7 +1339,7 @@ export default function SnakeGame({
               </div>
 
               {/* Stats Card Breakdown */}
-              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 w-full max-w-xs space-y-3">
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 w-full max-w-xs my-auto space-y-3">
                 <div className="flex justify-between items-center text-sm border-b border-slate-800 pb-2">
                   <span className="text-slate-400 font-medium">Final Score</span>
                   <span className="text-xl font-extrabold text-emerald-400">{score}</span>

@@ -992,7 +992,7 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
 
         {/* Start / Mode Selection Menu Modal */}
         {gameState === "menu" && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+          <div className="absolute inset-0 z-30 flex items-center justify-start overflow-y-auto p-4 bg-slate-950/85 backdrop-blur-md">
             <Card className="w-full max-w-lg border-slate-800 bg-slate-900/90 text-white shadow-2xl overflow-hidden">
               <CardContent className="p-6 sm:p-8">
                 <div className="text-center mb-6">
@@ -1088,7 +1088,7 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
 
         {/* Paused Menu Modal */}
         {gameState === "paused" && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="absolute inset-0 z-30 flex items-center justify-start overflow-y-auto p-4 bg-slate-950/80 backdrop-blur-md">
             <Card className="w-full max-w-sm border-slate-800 bg-slate-900 text-white shadow-2xl">
               <CardContent className="p-6 text-center">
                 <h2 className="text-2xl font-black mb-4">GAME PAUSED</h2>
@@ -1121,7 +1121,7 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
 
         {/* Game Over Modal */}
         {gameState === "gameOver" && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="absolute inset-0 z-30 flex items-center justify-start overflow-y-auto p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
             <Card className="w-full max-w-md border-slate-800 bg-slate-900 text-white shadow-2xl overflow-hidden">
               <CardContent className="p-6 sm:p-8 text-center">
                 <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-amber-500/20 flex items-center justify-center border border-amber-500/40">

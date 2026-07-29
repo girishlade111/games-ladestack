@@ -1258,7 +1258,7 @@ export default function SudokuGame({
           PLAYING PHASE
          ---------------------------------------------------- */}
       {phase === "playing" && (
-        <div className="w-full max-w-xl flex flex-col items-center gap-3">
+        <div className="w-full max-w-xl my-auto flex flex-col items-center gap-3">
           {/* Top Status & Controls Bar */}
           <div className="w-full flex items-center justify-between px-2 text-sm bg-card/60 border border-border/60 rounded-xl p-2.5 backdrop-blur-sm shadow-sm">
             <div className="flex items-center gap-3">
@@ -1321,7 +1321,7 @@ export default function SudokuGame({
           <div className="relative w-full aspect-square max-w-[460px] bg-card/90 rounded-2xl shadow-xl border-2 border-foreground/20 overflow-hidden p-1 sm:p-1.5 select-none">
             {/* Pause Shield Overlay */}
             {isPaused && (
-              <div className="absolute inset-0 z-30 bg-background/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200">
+              <div className="absolute inset-0 z-30 bg-background/80 backdrop-blur-md flex flex-col items-center justify-start overflow-y-auto p-6 text-center animate-in fade-in duration-200">
                 <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-3 text-primary">
                   <Pause className="w-7 h-7" />
                 </div>
@@ -1341,7 +1341,7 @@ export default function SudokuGame({
 
             {/* Game Over Overlay (Max Mistakes) */}
             {isGameOverByMistakes && (
-              <div className="absolute inset-0 z-30 bg-background/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200">
+              <div className="absolute inset-0 z-30 bg-background/95 backdrop-blur-md flex flex-col items-center justify-start overflow-y-auto p-6 text-center animate-in fade-in duration-200">
                 <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center mb-3 text-red-500">
                   <ShieldAlert className="w-7 h-7" />
                 </div>

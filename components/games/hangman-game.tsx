@@ -63,7 +63,7 @@ export default function HangmanGame({ themeColor = "#8b5cf6" }: { onBack?: () =>
   return (
     <div className="flex flex-col items-center min-h-[550px] px-4">
       {phase === "menu" && (
-        <div className="text-center max-w-md py-12">
+        <div className="text-center max-w-md my-auto py-12">
           <div className="w-20 h-20 rounded-2xl mx-auto mb-6 flex items-center justify-center" style={{ backgroundColor: themeColor }}>
             <span className="text-3xl text-white font-bold">H</span>
           </div>
@@ -75,7 +75,7 @@ export default function HangmanGame({ themeColor = "#8b5cf6" }: { onBack?: () =>
       )}
 
       {phase !== "menu" && (
-        <div className="w-full max-w-md py-4">
+        <div className="w-full max-w-md my-auto py-4">
           <div className="flex justify-between items-center mb-4">
             <span className="text-sm text-muted-foreground">Score: {score}</span>
             <Button variant="ghost" size="sm" onClick={startGame}><RotateCcw className="w-3.5 h-3.5 mr-1" />New</Button>

@@ -1047,8 +1047,8 @@ export default function PongGame({
 
           {/* MENU OVERLAY */}
           {gameState === "menu" && (
-            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20">
-              <div className="max-w-md w-full space-y-6">
+            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-start overflow-y-auto p-6 text-center z-20">
+              <div className="max-w-md my-auto w-full space-y-6">
                 <div>
                   <h2 className="text-3xl font-black tracking-wider uppercase text-white mb-1">Select Game Mode</h2>
                   <p className="text-sm text-slate-400">Customise your match settings and start playing.</p>
@@ -1172,7 +1172,7 @@ export default function PongGame({
 
           {/* COUNTDOWN OVERLAY */}
           {gameState === "countdown" && (
-            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm flex flex-col items-center justify-center text-center z-20">
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm flex flex-col items-center justify-start overflow-y-auto text-center z-20">
               <div className="text-7xl font-black text-white animate-bounce drop-shadow-[0_0_20px_rgba(59,130,246,0.6)]">
                 {countdown > 0 ? countdown : "GO!"}
               </div>
@@ -1182,7 +1182,7 @@ export default function PongGame({
 
           {/* PAUSED OVERLAY */}
           {gameState === "paused" && (
-            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center text-center z-20 space-y-4">
+            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-start overflow-y-auto text-center z-20 space-y-4">
               <h3 className="text-3xl font-black text-white uppercase tracking-wider">Game Paused</h3>
               <p className="text-sm text-slate-400">Press Space or click Resume to continue.</p>
               <div className="flex gap-3">
@@ -1211,7 +1211,7 @@ export default function PongGame({
 
           {/* GAME OVER OVERLAY */}
           {gameState === "gameover" && (
-            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 space-y-6">
+            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-start overflow-y-auto p-6 text-center z-20 space-y-6">
               <div>
                 <div className="inline-flex p-3 rounded-full bg-yellow-500/10 text-yellow-400 mb-3 border border-yellow-500/20">
                   <Trophy className="w-8 h-8" />
@@ -1225,7 +1225,7 @@ export default function PongGame({
               </div>
 
               {/* Match Stats Table */}
-              <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl w-full max-w-sm grid grid-cols-2 gap-3 text-xs text-left">
+              <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl w-full max-w-sm my-auto grid grid-cols-2 gap-3 text-xs text-left">
                 <div>
                   <span className="text-slate-500">Longest Rally</span>
                   <p className="text-base font-bold text-yellow-400">{maxRally} hits</p>
@@ -1244,7 +1244,7 @@ export default function PongGame({
                 </div>
               </div>
 
-              <div className="flex gap-3 w-full max-w-sm">
+              <div className="flex gap-3 w-full max-w-sm my-auto">
                 <Button
                   onClick={resetGame}
                   className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-5"

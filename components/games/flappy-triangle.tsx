@@ -1231,8 +1231,8 @@ export default function FlappyTriangle({
 
           {/* MAIN MENU OVERLAY */}
           {gameState === "menu" && (
-            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20">
-              <div className="max-w-lg w-full bg-slate-900/90 border border-slate-800 p-6 md:p-8 rounded-2xl shadow-2xl">
+            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-start overflow-y-auto p-6 text-center z-20">
+              <div className="max-w-lg my-auto w-full bg-slate-900/90 border border-slate-800 p-6 md:p-8 rounded-2xl shadow-2xl">
                 {/* Title */}
                 <div className="w-16 h-16 mx-auto mb-3 rounded-2xl flex items-center justify-center bg-gradient-to-tr from-amber-500 to-orange-500 shadow-xl shadow-amber-500/20">
                   <Triangle className="w-9 h-9 text-white fill-white rotate-90" />
@@ -1321,7 +1321,7 @@ export default function FlappyTriangle({
 
           {/* PAUSE OVERLAY */}
           {gameState === "paused" && (
-            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6 text-center z-20">
+            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-start overflow-y-auto p-6 text-center z-20">
               <Card className="p-8 max-w-sm w-full bg-slate-900 border-slate-800 shadow-2xl text-slate-100">
                 <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
                   <Pause className="w-6 h-6" />
@@ -1369,7 +1369,7 @@ export default function FlappyTriangle({
 
           {/* GAME OVER OVERLAY */}
           {gameState === "gameOver" && (
-            <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-6 text-center z-20">
+            <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-start overflow-y-auto p-6 text-center z-20">
               <Card className="p-6 md:p-8 max-w-md w-full bg-slate-900/95 border-slate-800 shadow-2xl text-slate-100">
                 <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400">
                   <Flame className="w-7 h-7" />

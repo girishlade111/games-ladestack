@@ -81,7 +81,7 @@ export default function Match3Game({ themeColor = "#14b8a6" }: { onBack?: () => 
   return (
     <div className="flex flex-col items-center min-h-[550px] px-4">
       {phase === "menu" && (
-        <div className="text-center max-w-md py-12">
+        <div className="text-center max-w-md my-auto py-12">
           <div className="w-20 h-20 rounded-2xl mx-auto mb-6 flex items-center justify-center" style={{ backgroundColor: themeColor }}>
             <Target className="w-10 h-10 text-white" />
           </div>

@@ -1986,7 +1986,7 @@ export default function OrbitDefense({ onBack, themeColor = "#6366f1" }: OrbitDe
 
         {/* MENU OVERLAY */}
         {gameState === "menu" && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-6">
+          <div className="absolute inset-0 z-20 flex items-center justify-start overflow-y-auto bg-slate-950/95 backdrop-blur-md p-6">
             <Card className="max-w-xl w-full p-6 bg-slate-900/90 border-slate-800 text-slate-100 shadow-2xl space-y-6">
               <div className="text-center space-y-2">
                 <div
@@ -2071,7 +2071,7 @@ export default function OrbitDefense({ onBack, themeColor = "#6366f1" }: OrbitDe
 
         {/* PAUSE OVERLAY */}
         {gameState === "paused" && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/90 backdrop-blur-md">
+          <div className="absolute inset-0 z-20 flex items-center justify-start overflow-y-auto bg-slate-950/90 backdrop-blur-md">
             <Card className="p-6 bg-slate-900 border-slate-800 text-slate-100 max-w-sm w-full text-center space-y-5 shadow-2xl">
               <h3 className="text-2xl font-bold tracking-tight">GAME PAUSED</h3>
               <p className="text-xs text-slate-400">Tactical simulation suspended. Resume when ready.</p>
@@ -2098,7 +2098,7 @@ export default function OrbitDefense({ onBack, themeColor = "#6366f1" }: OrbitDe
 
         {/* GAME OVER OVERLAY */}
         {gameState === "gameOver" && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-6">
+          <div className="absolute inset-0 z-20 flex items-center justify-start overflow-y-auto bg-slate-950/95 backdrop-blur-md p-6">
             <Card className="max-w-md w-full p-6 bg-slate-900 border-slate-800 text-slate-100 shadow-2xl space-y-6 text-center">
               <div className="space-y-1">
                 <div className="w-12 h-12 mx-auto rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mb-2">
@@ -2158,7 +2158,7 @@ export default function OrbitDefense({ onBack, themeColor = "#6366f1" }: OrbitDe
         {gameState === "playing" && (
           <div className="p-3 bg-slate-950/90 border-t border-slate-800/80 flex flex-col md:flex-row items-center justify-between gap-3">
             {/* Turret Selection Hotbar */}
-            <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 md:pb-0">
+            <div className="flex items-center gap-1.5 overflow-x-auto max-w-full my-auto pb-1 md:pb-0">
               {(Object.keys(TURRET_TYPES) as TurretType[]).map((key) => {
                 const spec = TURRET_TYPES[key]
                 const isSelected = selectedTurretType === key

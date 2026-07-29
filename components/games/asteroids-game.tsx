@@ -158,8 +158,8 @@ export default function AsteroidsGame({ themeColor = "#06b6d4" }: { onBack?: () 
     <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-4">
       <canvas ref={canvasRef} width={W} height={H} className="border-2 border-cyan-700 rounded-xl shadow-2xl mx-auto block" />
       {gameState === "menu" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm rounded-xl">
-          <div className="text-center text-white p-8 max-w-sm bg-gray-900/90 rounded-xl border border-cyan-700">
+        <div className="absolute inset-0 flex items-center justify-start overflow-y-auto bg-black/70 backdrop-blur-sm rounded-xl">
+          <div className="text-center text-white p-8 max-w-sm my-auto bg-gray-900/90 rounded-xl border border-cyan-700">
             <Rocket className="w-12 h-12 mx-auto mb-4 text-cyan-400" />
             <h1 className="text-2xl font-bold mb-2">Asteroids</h1>
             <p className="text-gray-400 mb-4 text-sm">Destroy asteroids. Survive.</p>
@@ -174,8 +174,8 @@ export default function AsteroidsGame({ themeColor = "#06b6d4" }: { onBack?: () 
         </div>
       )}
       {gameState === "gameOver" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm rounded-xl">
-          <div className="text-center text-white p-8 max-w-sm bg-gray-900/90 rounded-xl border border-red-700">
+        <div className="absolute inset-0 flex items-center justify-start overflow-y-auto bg-black/70 backdrop-blur-sm rounded-xl">
+          <div className="text-center text-white p-8 max-w-sm my-auto bg-gray-900/90 rounded-xl border border-red-700">
             <h2 className="text-xl font-bold mb-2 text-red-400">Game Over</h2>
             <p className="text-3xl font-bold text-white mb-2">{score}</p>
             {score === bestScore && score > 0 && <p className="text-yellow-400 text-sm mb-4">New Best!</p>}

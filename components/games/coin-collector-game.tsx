@@ -1517,7 +1517,7 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
 
               {/* Paused Overlay */}
               {gameState === "paused" && (
-                <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center text-slate-100 p-6 z-20">
+                <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-start overflow-y-auto text-slate-100 p-6 z-20">
                   <h2 className="text-3xl font-extrabold mb-2">Game Paused</h2>
                   <p className="text-slate-400 text-sm mb-6">Take a breather and hop back in!</p>
                   <div className="flex space-x-4">
@@ -1540,7 +1540,7 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
 
               {/* Stage Clear Overlay */}
               {gameState === "stageClear" && (
-                <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center text-slate-100 p-6 z-20 animate-fade-in">
+                <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-start overflow-y-auto text-slate-100 p-6 z-20 animate-fade-in">
                   <Sparkles className="w-12 h-12 text-amber-400 mb-2 animate-bounce" />
                   <h2 className="text-3xl font-extrabold mb-1">Stage {currentStage - 1} Cleared!</h2>
                   <p className="text-slate-400 text-sm mb-6">Target reached! Ready for the next stage?</p>

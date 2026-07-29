@@ -1317,7 +1317,7 @@ export default function TetrisGame({ onBack, themeColor }: { onBack: () => void;
 
             {/* Menu Overlay */}
             {gameState === "menu" && (
-              <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20">
+              <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-start overflow-y-auto p-6 text-center z-20">
                 <div className="w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center mb-4">
                   <Sparkles className="w-7 h-7 text-purple-400 animate-pulse" />
                 </div>
@@ -1376,7 +1376,7 @@ export default function TetrisGame({ onBack, themeColor }: { onBack: () => void;
 
             {/* Pause Overlay */}
             {gameState === "paused" && (
-              <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20">
+              <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-start overflow-y-auto p-6 text-center z-20">
                 <h2 className="text-2xl font-bold mb-4">Game Paused</h2>
                 <div className="flex flex-col gap-3 w-48">
                   <Button onClick={() => setGameState("playing")} className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold">
@@ -1391,7 +1391,7 @@ export default function TetrisGame({ onBack, themeColor }: { onBack: () => void;
 
             {/* Game Over Overlay */}
             {gameState === "gameOver" && (
-              <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20">
+              <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-start overflow-y-auto p-6 text-center z-20">
                 <ShieldAlert className="w-12 h-12 text-rose-500 mb-2 animate-bounce" />
                 <h2 className="text-3xl font-extrabold text-rose-400 mb-1">
                   {gameMode === "sprint" && engine.current.lines >= 40 ? "Sprint Completed!" : "Game Over"}
@@ -1413,7 +1413,7 @@ export default function TetrisGame({ onBack, themeColor }: { onBack: () => void;
                   </div>
                 </div>
 
-                <div className="flex gap-3 w-full max-w-xs">
+                <div className="flex gap-3 w-full max-w-xs my-auto">
                   <Button onClick={startGame} className="flex-1 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-semibold">
                     <RotateCcw className="w-4 h-4 mr-2" /> Play Again
                   </Button>

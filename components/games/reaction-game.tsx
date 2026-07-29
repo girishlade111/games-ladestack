@@ -928,7 +928,7 @@ export default function ReactionGame({ onBack }: ReactionGameProps) {
                   </Button>
                 </div>
               ) : (
-                <div className="w-full max-w-sm space-y-4">
+                <div className="w-full max-w-sm my-auto space-y-4">
                   <div className="flex justify-between items-center text-xs font-semibold text-slate-400 px-1">
                     <span>Progress: {targetHitCount} / 10 Targets</span>
                     <span>
@@ -989,7 +989,7 @@ export default function ReactionGame({ onBack }: ReactionGameProps) {
                   </Button>
                 </div>
               ) : (
-                <div className="w-full max-w-md space-y-6">
+                <div className="w-full max-w-md my-auto space-y-6">
                   <div className="flex justify-between items-center text-xs font-semibold text-slate-400">
                     <span>Round {stroopRound} / 10</span>
                     <span>Score: {stroopScore} Correct</span>

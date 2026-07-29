@@ -1304,7 +1304,7 @@ export default function WordScrambleGame({ onBack, themeColor = "#8b5cf6" }: Wor
         {/* 4. ROUND SUMMARY (LEVEL COMPLETE) */}
         {/* ========================================================================= */}
         {gameState === "round_summary" && (
-          <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-300">
+          <div className="w-full max-w-md my-auto animate-in fade-in zoom-in-95 duration-300">
             <Card className="bg-slate-900/90 border-slate-800 p-8 rounded-3xl shadow-2xl backdrop-blur-xl text-center">
               <div className="w-16 h-16 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto mb-4 border border-cyan-500/30">
                 <Trophy className="w-8 h-8" />
@@ -1367,7 +1367,7 @@ export default function WordScrambleGame({ onBack, themeColor = "#8b5cf6" }: Wor
         {/* 5. GAME OVER STATE */}
         {/* ========================================================================= */}
         {gameState === "game_over" && (
-          <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-300">
+          <div className="w-full max-w-md my-auto animate-in fade-in zoom-in-95 duration-300">
             <Card className="bg-slate-900/90 border-slate-800 p-8 rounded-3xl shadow-2xl backdrop-blur-xl text-center">
               <div className="w-16 h-16 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center mx-auto mb-4 border border-purple-500/30">
                 <Award className="w-8 h-8" />

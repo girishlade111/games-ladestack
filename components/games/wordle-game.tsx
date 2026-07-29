@@ -118,7 +118,7 @@ export default function WordleGame({ themeColor = "#15803d" }: { onBack?: () => 
   return (
     <div className="flex flex-col items-center min-h-[550px] px-4">
       {phase === "menu" && (
-        <div className="text-center max-w-md py-12">
+        <div className="text-center max-w-md my-auto py-12">
           <div className="w-20 h-20 rounded-2xl mx-auto mb-6 flex items-center justify-center" style={{ backgroundColor: themeColor }}>
             <span className="text-3xl">🟩</span>
           </div>
@@ -139,7 +139,7 @@ export default function WordleGame({ themeColor = "#15803d" }: { onBack?: () => 
       )}
 
       {phase !== "menu" && (
-        <div className="py-4 w-full max-w-sm">
+        <div className="py-4 w-full max-w-sm my-auto">
           <div className="flex justify-between items-center mb-4">
             <span className="text-sm text-muted-foreground">
               Guess {Math.min(guesses.length + 1, ROWS)} of {ROWS}

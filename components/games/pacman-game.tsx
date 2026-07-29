@@ -1646,7 +1646,7 @@ export default function PacmanGame({
 
             {/* Pause Overlay */}
             {phase === "paused" && (
-              <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 gap-4">
+              <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-start overflow-y-auto text-center p-6 gap-4">
                 <h3 className="text-3xl font-black text-white tracking-wider">GAME PAUSED</h3>
                 <p className="text-sm text-muted-foreground">Press 'P' or click resume to return to the maze.</p>
                 <div className="flex items-center gap-3">

@@ -1338,7 +1338,7 @@ export default function SheepRunGame({
 
         {/* MAIN MENU OVERLAY */}
         {gameState === "menu" && (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-6">
+          <div className="absolute inset-0 flex items-center justify-start overflow-y-auto bg-slate-950/90 backdrop-blur-md p-6">
             <Card className="w-full max-w-md bg-slate-900/90 border-slate-800 text-slate-100 p-6 shadow-2xl rounded-2xl flex flex-col items-center">
               <div className="p-3 bg-emerald-500/10 rounded-full mb-3 border border-emerald-500/20">
                 <PawPrint className="w-10 h-10 text-emerald-400" />
@@ -1430,7 +1430,7 @@ export default function SheepRunGame({
 
         {/* PAUSED OVERLAY */}
         {gameState === "paused" && (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80 backdrop-blur-md">
+          <div className="absolute inset-0 flex items-center justify-start overflow-y-auto bg-slate-950/80 backdrop-blur-md">
             <Card className="bg-slate-900 border-slate-800 p-6 text-center rounded-2xl w-80 shadow-2xl">
               <h3 className="text-2xl font-bold text-white mb-2">Game Paused</h3>
               <p className="text-xs text-slate-400 mb-6">Take a breath! Ready to jump back in?</p>
@@ -1455,7 +1455,7 @@ export default function SheepRunGame({
 
         {/* GAME OVER OVERLAY */}
         {gameState === "gameOver" && (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-6">
+          <div className="absolute inset-0 flex items-center justify-start overflow-y-auto bg-slate-950/90 backdrop-blur-md p-6">
             <Card className="w-full max-w-sm bg-slate-900 border-slate-800 p-6 text-center rounded-2xl shadow-2xl flex flex-col items-center">
               <div className="p-3 bg-rose-500/10 rounded-full mb-3 border border-rose-500/20">
                 <PawPrint className="w-8 h-8 text-rose-500" />

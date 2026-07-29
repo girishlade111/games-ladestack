@@ -123,7 +123,7 @@ export default function TriviaQuizGame({ themeColor = "#f43f5e" }: { onBack?: ()
   return (
     <div className="flex flex-col items-center justify-center min-h-[500px] px-4">
       {phase === "menu" && (
-        <div className="text-center max-w-md">
+        <div className="text-center max-w-md my-auto">
           <div className="w-20 h-20 rounded-2xl mx-auto mb-6 flex items-center justify-center" style={{ backgroundColor: themeColor }}>
             <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
@@ -147,7 +147,7 @@ export default function TriviaQuizGame({ themeColor = "#f43f5e" }: { onBack?: ()
       )}
 
       {phase === "playing" && q && (
-        <div className="w-full max-w-lg">
+        <div className="w-full max-w-lg my-auto">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-muted-foreground">
@@ -231,7 +231,7 @@ export default function TriviaQuizGame({ themeColor = "#f43f5e" }: { onBack?: ()
       )}
 
       {phase === "finished" && (
-        <div className="text-center max-w-md">
+        <div className="text-center max-w-md my-auto">
           <div className="w-20 h-20 rounded-2xl mx-auto mb-6 flex items-center justify-center" style={{ backgroundColor: themeColor }}>
             <Trophy className="w-10 h-10 text-white" />
           </div>

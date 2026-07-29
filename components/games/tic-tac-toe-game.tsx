@@ -1539,7 +1539,7 @@ export default function TicTacToeGame({ onBack }: TicTacToeGameProps) {
 
               {/* OVERLAY BANNER FOR GAME OVER */}
               {gameState === "gameOver" && (
-                <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in-95 duration-300 z-20">
+                <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md rounded-2xl flex flex-col items-center justify-start overflow-y-auto p-6 text-center animate-in fade-in zoom-in-95 duration-300 z-20">
                   <div className="p-3 rounded-full bg-slate-900 border border-slate-700 mb-3 shadow-xl">
                     {winner === "tie" ? (
                       <Sparkle className="w-8 h-8 text-slate-400" />
@@ -1598,7 +1598,7 @@ export default function TicTacToeGame({ onBack }: TicTacToeGameProps) {
 
             {/* HINT REASON TOOLTIP */}
             {hintReason && gameState === "playing" && (
-              <div className="w-full max-w-md p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2 animate-in fade-in duration-200">
+              <div className="w-full max-w-md my-auto p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2 animate-in fade-in duration-200">
                 <Lightbulb className="w-4 h-4 shrink-0 text-amber-400" />
                 <span>{hintReason}</span>
               </div>
@@ -1648,7 +1648,7 @@ export default function TicTacToeGame({ onBack }: TicTacToeGameProps) {
 
       {/* REPLAY CONTROL FOOTER (WHEN REPLAYING) */}
       {isReplaying && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-md p-4 rounded-2xl bg-slate-900/90 border border-slate-800 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-4 z-40">
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-md my-auto p-4 rounded-2xl bg-slate-900/90 border border-slate-800 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-4 z-40">
           <div className="text-xs font-bold text-slate-300">
             Step {replayStep + 1} / {history.length}
           </div>

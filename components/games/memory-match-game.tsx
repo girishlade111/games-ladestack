@@ -1101,8 +1101,8 @@ export default function MemoryMatchGame({ onBack }: MemoryMatchGameProps) {
 
       {/* PAUSE OVERLAY */}
       {isPaused && (
-        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md z-30 flex flex-col items-center justify-center">
-          <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl text-center max-w-sm w-full shadow-2xl">
+        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md z-30 flex flex-col items-center justify-start overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl text-center max-w-sm my-auto w-full shadow-2xl">
             <Pause className="w-12 h-12 text-amber-400 mx-auto mb-4 animate-bounce" />
             <h2 className="text-2xl font-bold text-white mb-2">Game Paused</h2>
             <p className="text-slate-400 text-sm mb-6">Take a breath, test your memory when ready!</p>

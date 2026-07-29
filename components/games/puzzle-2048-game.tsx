@@ -1152,7 +1152,7 @@ export default function Puzzle2048Game({ onBack, themeColor = "#f59e0b" }: Puzzl
       >
         {/* Victory Overlay Modal */}
         {gameWon && !keepPlaying && (
-          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md rounded-3xl z-30 flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in-95 duration-300">
+          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md rounded-3xl z-30 flex flex-col items-center justify-start overflow-y-auto p-6 text-center animate-in fade-in zoom-in-95 duration-300">
             <Crown className="w-16 h-16 text-amber-400 mb-3 animate-bounce" />
             <h2 className="text-3xl md:text-4xl font-black text-amber-300 mb-2">YOU REACHED {MODES[mode].target}!</h2>
             <p className="text-slate-300 text-sm mb-6 max-w-xs">
@@ -1178,7 +1178,7 @@ export default function Puzzle2048Game({ onBack, themeColor = "#f59e0b" }: Puzzl
 
         {/* Game Over Overlay Modal */}
         {gameOver && (
-          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md rounded-3xl z-30 flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in-95 duration-300">
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md rounded-3xl z-30 flex flex-col items-center justify-start overflow-y-auto p-6 text-center animate-in fade-in zoom-in-95 duration-300">
             <div className="w-14 h-14 bg-rose-500/20 border border-rose-500/40 rounded-2xl flex items-center justify-center mb-3">
               <RotateCcw className="w-8 h-8 text-rose-400" />
             </div>

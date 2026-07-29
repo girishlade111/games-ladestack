@@ -151,7 +151,7 @@ export default function RhythmTapGame({ themeColor = "#a21caf" }: { onBack?: () 
   return (
     <div className="flex flex-col items-center min-h-[550px] px-4">
       {phase === "menu" && (
-        <div className="text-center max-w-md py-12">
+        <div className="text-center max-w-md my-auto py-12">
           <div className="w-20 h-20 rounded-2xl mx-auto mb-6 flex items-center justify-center" style={{ backgroundColor: themeColor }}>
             <span className="text-3xl">🎵</span>
           </div>
@@ -229,7 +229,7 @@ export default function RhythmTapGame({ themeColor = "#a21caf" }: { onBack?: () 
             </div>
 
             {phase === "over" && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white">
+              <div className="absolute inset-0 flex flex-col items-center justify-start overflow-y-auto bg-black/80 text-white">
                 <div className="text-xl font-bold mb-2">Song Over</div>
                 <div className="text-sm opacity-80 mb-1">Score: {score}</div>
                 <div className="text-sm opacity-80 mb-5">Max combo: {maxCombo}</div>

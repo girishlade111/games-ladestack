@@ -82,7 +82,7 @@ export default function BlackjackGame({ themeColor = "#dc2626" }: { onBack?: () 
   return (
     <div className="flex flex-col items-center min-h-[550px] px-4">
       {phase === "menu" && (
-        <div className="text-center max-w-md py-12">
+        <div className="text-center max-w-md my-auto py-12">
           <div className="w-20 h-20 rounded-2xl mx-auto mb-6 flex items-center justify-center" style={{ backgroundColor: themeColor }}>
             <span className="text-3xl text-white font-bold">21</span>
           </div>
@@ -104,7 +104,7 @@ export default function BlackjackGame({ themeColor = "#dc2626" }: { onBack?: () 
       )}
 
       {(phase === "playing" || phase === "stand" || phase === "over") && (
-        <div className="w-full max-w-lg py-4">
+        <div className="w-full max-w-lg my-auto py-4">
           <div className="mb-4 p-3 bg-muted/50 rounded-lg">
             <div className="text-sm font-semibold mb-2">Dealer ({phase !== "playing" ? handValue(dealerHand) : cardValue(dealerHand[0])}+?)</div>
             <div className="flex gap-1">{dealerHand.map((c, i) => renderMiniCard(c, i))}</div>

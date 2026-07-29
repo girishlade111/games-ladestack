@@ -1833,7 +1833,7 @@ export default function SpaceInvadersGame({
 
           {/* MAIN MENU OVERLAY */}
           {gameState === "menu" && (
-            <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-6">
+            <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-start overflow-y-auto p-6">
               <Card className="w-full max-w-lg bg-slate-900/90 border-slate-800 text-white p-6 shadow-2xl">
                 <div className="text-center mb-6">
                   <div
@@ -1923,7 +1923,7 @@ export default function SpaceInvadersGame({
 
           {/* PAUSE OVERLAY */}
           {gameState === "paused" && (
-            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6">
+            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-start overflow-y-auto p-6">
               <Card className="w-full max-w-sm bg-slate-900 border-slate-800 text-white p-6 text-center shadow-2xl">
                 <h3 className="text-xl font-bold text-white mb-2">MISSION PAUSED</h3>
                 <p className="text-xs text-slate-400 mb-6">Take a breath, defender</p>
@@ -1960,7 +1960,7 @@ export default function SpaceInvadersGame({
 
           {/* GAME OVER OVERLAY */}
           {gameState === "gameover" && (
-            <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-6">
+            <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-start overflow-y-auto p-6">
               <Card className="w-full max-w-md bg-slate-900 border-slate-800 text-white p-6 text-center shadow-2xl">
                 <div className="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto mb-3 border border-rose-500/40">
                   <Flame className="w-6 h-6" />

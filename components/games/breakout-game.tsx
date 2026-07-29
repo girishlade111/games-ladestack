@@ -1474,7 +1474,7 @@ export default function BreakoutGame({
 
         {/* Active Power-Ups Badge Bar */}
         {activePowerUps.length > 0 && (
-          <div className="absolute top-14 left-4 z-10 flex flex-wrap gap-1.5 max-w-md pointer-events-none">
+          <div className="absolute top-14 left-4 z-10 flex flex-wrap gap-1.5 max-w-md my-auto pointer-events-none">
             {activePowerUps.map((p, idx) => (
               <span
                 key={idx}
@@ -1501,7 +1501,7 @@ export default function BreakoutGame({
 
         {/* MENU OVERLAY */}
         {gameState === "menu" && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-6">
+          <div className="absolute inset-0 z-20 flex items-center justify-start overflow-y-auto bg-slate-950/95 backdrop-blur-md p-6">
             <Card className="w-full max-w-lg bg-slate-900/90 border-slate-800 text-slate-100 p-6 shadow-2xl">
               <div className="text-center mb-6">
                 <div
@@ -1567,7 +1567,7 @@ export default function BreakoutGame({
 
         {/* GAME OVER OVERLAY */}
         {gameState === "gameover" && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-6">
+          <div className="absolute inset-0 z-20 flex items-center justify-start overflow-y-auto bg-slate-950/95 backdrop-blur-md p-6">
             <Card className="w-full max-w-md bg-slate-900/90 border-slate-800 text-slate-100 p-6 text-center shadow-2xl">
               <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400">
                 <ZapOff className="w-6 h-6" />
@@ -1612,7 +1612,7 @@ export default function BreakoutGame({
 
         {/* VICTORY OVERLAY */}
         {gameState === "victory" && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-6">
+          <div className="absolute inset-0 z-20 flex items-center justify-start overflow-y-auto bg-slate-950/95 backdrop-blur-md p-6">
             <Card className="w-full max-w-md bg-slate-900/90 border-slate-800 text-slate-100 p-6 text-center shadow-2xl">
               <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 animate-bounce">
                 <Trophy className="w-6 h-6" />

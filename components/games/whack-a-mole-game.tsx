@@ -718,7 +718,7 @@ export default function WhackAMoleGame({ onBack }: WhackAMoleGameProps) {
         {/* MENU / DIFFICULTY SELECTION */}
         {gameState === "menu" && (
           <div className="flex flex-col items-center gap-6 py-4">
-            <div className="text-center max-w-lg">
+            <div className="text-center max-w-lg my-auto">
               <h2 className="text-2xl md:text-3xl font-black text-white mb-2">Select Challenge Mode</h2>
               <p className="text-slate-400 text-sm">
                 Whack moles as fast as you can! Avoid bombs, crack heavy helmets, and chain combo streaks for massive scores.

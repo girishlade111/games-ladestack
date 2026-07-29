@@ -168,7 +168,7 @@ export default function RoadCrossingGame({ themeColor = "#4d7c0f" }: { onBack?: 
   return (
     <div className="flex flex-col items-center min-h-[550px] px-4">
       {phase === "menu" && (
-        <div className="text-center max-w-md py-12">
+        <div className="text-center max-w-md my-auto py-12">
           <div className="w-20 h-20 rounded-2xl mx-auto mb-6 flex items-center justify-center" style={{ backgroundColor: themeColor }}>
             <span className="text-3xl">🐸</span>
           </div>
@@ -195,7 +195,7 @@ export default function RoadCrossingGame({ themeColor = "#4d7c0f" }: { onBack?: 
           <div className="relative">
             <canvas ref={canvasRef} width={W} height={H} className="rounded-lg border max-w-full" />
             {phase === "over" && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 rounded-lg text-white">
+              <div className="absolute inset-0 flex flex-col items-center justify-start overflow-y-auto bg-black/70 rounded-lg text-white">
                 <div className="text-xl font-bold mb-1">Game Over</div>
                 <div className="text-sm mb-4 opacity-80">Score: {score}</div>
                 <Button onClick={reset} style={{ backgroundColor: themeColor }}>

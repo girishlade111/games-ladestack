@@ -1296,7 +1296,7 @@ export default function SolitaireGame({
       {/* Game Won Modal */}
       {phase === "won" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center shadow-2xl animate-in fade-in zoom-in duration-200">
+          <div className="w-full max-w-md my-auto bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center shadow-2xl animate-in fade-in zoom-in duration-200">
             <div
               className="w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center text-4xl text-white shadow-xl animate-bounce"
               style={{ backgroundColor: themeColor }}

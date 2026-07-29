@@ -731,7 +731,7 @@ export default function ConnectFourGame({ onBack, themeColor }: ConnectFourGameP
   if (!gameMode) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-4 selection:bg-cyan-500/30">
-        <div className="w-full max-w-xl bg-slate-900/80 border border-slate-800 backdrop-blur-xl rounded-3xl p-8 shadow-2xl shadow-cyan-950/40 relative overflow-hidden">
+        <div className="w-full max-w-xl my-auto bg-slate-900/80 border border-slate-800 backdrop-blur-xl rounded-3xl p-8 shadow-2xl shadow-cyan-950/40 relative overflow-hidden">
           {/* Glowing gradient backdrops */}
           <div className="absolute -top-24 -right-24 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
