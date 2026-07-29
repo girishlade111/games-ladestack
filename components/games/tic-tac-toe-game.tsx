@@ -21,7 +21,7 @@ interface TicTacToeGameProps {
 
 export default function TicTacToeGame({ onBack, themeColor }: TicTacToeGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const animationRef = useRef<number>()
+  const animationRef = useRef<number | null>(null)
 
   const [gameState, setGameState] = useState<"menu" | "playing" | "gameOver">("menu")
   const [board, setBoard] = useState<Player[]>(Array(9).fill(null))

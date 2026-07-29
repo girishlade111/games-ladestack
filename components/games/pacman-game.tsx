@@ -97,9 +97,9 @@ export default function PacmanGame({ themeColor = "#facc15" }: { onBack?: () => 
         for (const d of [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }]) { if (d.x !== -g.dir.x || d.y !== -g.dir.y) { if (canMove(g.x, g.y, d)) possible.push(d) } }
         if (possible.length === 0 && canMove(g.x, g.y, { x: -g.dir.x, y: -g.dir.y })) possible.push({ x: -g.dir.x, y: -g.dir.y })
         if (possible.length > 0) {
-          if (g.scared) g.dir = possible.sort((a, b) => { const da = Math.hypot(g.x + a.x * TILE_SIZE - p.x, g.y + a.y * TILE_SIZE - p.y); const db = Math.hypot(g.x + b.x * TILE_SIZE - p.x, g.y + b.y * TILE_SIZE - p.y); return db - da })[0].d
+          if (g.scared) g.dir = possible.sort((a, b) => { const da = Math.hypot(g.x + a.x * TILE_SIZE - p.x, g.y + a.y * TILE_SIZE - p.y); const db = Math.hypot(g.x + b.x * TILE_SIZE - p.x, g.y + b.y * TILE_SIZE - p.y); return db - da })[0]
           else if (Math.random() < 0.3) g.dir = possible[Math.floor(Math.random() * possible.length)]
-          else g.dir = possible.sort((a, b) => { const da = Math.hypot(g.x + a.x * TILE_SIZE - p.x, g.y + a.y * TILE_SIZE - p.y); const db = Math.hypot(g.x + b.x * TILE_SIZE - p.x, g.y + b.y * TILE_SIZE - p.y); return da - db })[0].d
+          else g.dir = possible.sort((a, b) => { const da = Math.hypot(g.x + a.x * TILE_SIZE - p.x, g.y + a.y * TILE_SIZE - p.y); const db = Math.hypot(g.x + b.x * TILE_SIZE - p.x, g.y + b.y * TILE_SIZE - p.y); return da - db })[0]
         }
         g.x += g.dir.x * 2; g.y += g.dir.y * 2; if (g.x < -TILE_SIZE / 2) g.x = CANVAS_W - TILE_SIZE / 2; if (g.x > CANVAS_W + TILE_SIZE / 2) g.x = TILE_SIZE / 2
       })
