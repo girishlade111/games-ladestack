@@ -106,7 +106,7 @@ interface OrbitDefenseProps {
 
 export default function OrbitDefense({ onBack, themeColor }: OrbitDefenseProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const gameLoopRef = useRef<number>()
+  const gameLoopRef = useRef<number | null>(null)
   const [gameState, setGameState] = useState<"menu" | "playing" | "gameOver" | "paused">("menu")
   const [wave, setWave] = useState(1)
   const [credits, setCredits] = useState(120)
@@ -374,20 +374,21 @@ export default function OrbitDefense({ onBack, themeColor }: OrbitDefenseProps) 
             target = enemy
           }
         })
-        if (target) {
+        const foundTarget = target as Enemy | null
+        if (foundTarget) {
           satellite.lastFired = currentTime
           const bulletSpeed = satellite.type === "missile" ? 6 : 12
           bullets.push({
             x: satellite.x,
             y: satellite.y,
-            targetX: target.x,
-            targetY: target.y,
+            targetX: foundTarget.x,
+            targetY: foundTarget.y,
             radius: BULLET_RADIUS + (satellite.type === "missile" ? 2 : 0),
             damage: satellite.damage,
             speed: bulletSpeed,
             life: 100,
             type: satellite.type,
-            targetEnemyId: target.id,
+            targetEnemyId: foundTarget.id,
             trail: [],
           })
         }
