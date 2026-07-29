@@ -41,6 +41,13 @@ export default function GamePageClient({ params }: { params: Promise<{ id: strin
     }
   }, [])
 
+  // Auto-enable fullscreen theater mode on mobile devices for better gameplay
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+      setIsFullscreen(true)
+    }
+  }, [])
+
   const exitFullscreen = useCallback(() => {
     setIsFullscreen(false)
     if (document.fullscreenElement) {
