@@ -70,7 +70,7 @@ export const gameRegistry: GameMeta[] = [
     color: "bg-emerald-600",
     themeColor: "#10b981",
     category: "Arcade",
-    difficulty: "Variable",
+    difficulty: "Medium",
     controls: ["Space / Up / W (Jump)", "Down / S (Duck)"],
     tags: ["runner", "endless", "arcade", "sheep", "power-ups"],
     playerCount: "1 Player",
