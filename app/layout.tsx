@@ -6,7 +6,7 @@ import Footer from "@/components/layout/footer"
 import { WebSiteJsonLd, OrganizationJsonLd } from "@/components/seo/json-ld"
 import "./globals.css"
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://games-ladestack.vercel.app"
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://games.ladestack.in"
 
 export const viewport: Viewport = {
   width: "device-width",

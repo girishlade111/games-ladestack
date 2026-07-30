@@ -1,6 +1,6 @@
 import React from 'react'
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://games-ladestack.vercel.app'
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://games.ladestack.in'
 
 export function WebSiteJsonLd() {
   const jsonLd = {

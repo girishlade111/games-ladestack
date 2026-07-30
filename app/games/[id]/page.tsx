@@ -4,7 +4,7 @@ import GamePageClient from "./game-page-client"
 import { gameRegistry, getGameById } from "@/lib/game-registry"
 import { VideoGameJsonLd, BreadcrumbJsonLd, FAQPageJsonLd } from "@/components/seo/json-ld"
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://games-ladestack.vercel.app"
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://games.ladestack.in"
 
 export function generateStaticParams() {
   return gameRegistry.map((game) => ({

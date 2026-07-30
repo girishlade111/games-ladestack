@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { gameRegistry } from '@/lib/game-registry'
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://games-ladestack.vercel.app'
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://games.ladestack.in'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const currentDate = new Date().toISOString()
