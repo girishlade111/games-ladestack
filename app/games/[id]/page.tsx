@@ -1,8 +1,9 @@
 import type { Metadata } from "next"
+import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import GamePageClient from "./game-page-client"
 import { gameRegistry, getGameById } from "@/lib/game-registry"
-import { VideoGameJsonLd, BreadcrumbJsonLd, FAQPageJsonLd } from "@/components/seo/json-ld"
+import { GameJsonLd, BreadcrumbJsonLd, FAQPageJsonLd } from "@/components/seo/json-ld"
 
 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://games.ladestack.in"
 
@@ -24,6 +25,10 @@ export async function generateMetadata({
     return {
       title: "Game Not Found | GameHub",
       description: "The requested game could not be found on GameHub.",
+      robots: {
+        index: false,
+        follow: false,
+      },
     }
   }
 
@@ -91,7 +96,11 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
   const { id } = await params
   const game = getGameById(id)
 
-  const faqItems = game ? [
+  if (!game) {
+    notFound()
+  }
+
+  const faqItems = [
     {
       question: `Is ${game.title} free to play online?`,
       answer: `Yes! ${game.title} is completely free to play in your browser with zero paywalls or mandatory sign-ups.`
@@ -104,31 +113,26 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
       question: `Does ${game.title} support mobile phones and tablets?`,
       answer: `Yes, ${game.title} is fully optimized for mobile touchscreens as well as desktop keyboards and mice.`
     }
-  ] : []
+  ]
 
   return (
     <>
-      {game && (
-        <>
-          <VideoGameJsonLd
-            id={game.id}
-            title={game.title}
-            description={game.description}
-            longDescription={game.longDescription}
-            category={game.category}
-            tags={game.tags}
-            themeColor={game.themeColor}
-          />
-          <BreadcrumbJsonLd
-            items={[
-              { name: "Home", url: "/" },
-              { name: "Games Directory", url: "/games" },
-              { name: game.title, url: `/games/${game.id}` },
-            ]}
-          />
-          <FAQPageJsonLd mainEntity={faqItems} />
-        </>
-      )}
+      <GameJsonLd
+        id={game.id}
+        title={game.title}
+        description={game.description}
+        longDescription={game.longDescription}
+        category={game.category}
+        tags={game.tags}
+      />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "/" },
+          { name: "Games Directory", url: "/games" },
+          { name: game.title, url: `/games/${game.id}` },
+        ]}
+      />
+      <FAQPageJsonLd mainEntity={faqItems} />
       <Suspense fallback={<GameSkeleton />}>
         <GamePageClient params={params} />
       </Suspense>

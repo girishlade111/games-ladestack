@@ -220,6 +220,23 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  // All fire-and-forget playback/round timers, cleared on restart & unmount so
+  // stale callbacks can never corrupt a freshly started game.
+  const pendingTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
+
+  const addPendingTimer = useCallback((fn: () => void, ms: number) => {
+    const id = setTimeout(() => {
+      pendingTimersRef.current.delete(id)
+      fn()
+    }, ms)
+    pendingTimersRef.current.add(id)
+    return id
+  }, [])
+
+  const clearPendingTimers = useCallback(() => {
+    pendingTimersRef.current.forEach((id) => clearTimeout(id))
+    pendingTimersRef.current.clear()
+  }, [])
 
   const getAudioContext = useCallback(() => {
     if (!audioCtxRef.current) {
@@ -249,7 +266,10 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
     } catch (e) {
       console.warn("Could not load stored data:", e)
     }
-  }, [])
+    return () => {
+      clearPendingTimers()
+    }
+  }, [clearPendingTimers])
 
   const saveHighScore = useCallback((currentScore: number) => {
     const key = `${mode}_${difficulty}_${patternStyle}`
@@ -257,7 +277,11 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
       const best = prev[key] || 0
       if (currentScore > best) {
         const updated = { ...prev, [key]: currentScore }
-        localStorage.setItem("simon_says_high_scores_v5", JSON.stringify(updated))
+        try {
+          localStorage.setItem("simon_says_high_scores_v5", JSON.stringify(updated))
+        } catch {
+          // Storage unavailable; keep in-memory value only.
+        }
         return updated
       }
       return prev
@@ -288,7 +312,11 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
 
       if (changed) {
         const unlockedIds = updated.filter((a) => a.unlocked).map((a) => a.id)
-        localStorage.setItem("simon_says_achievements_v5", JSON.stringify(unlockedIds))
+        try {
+          localStorage.setItem("simon_says_achievements_v5", JSON.stringify(unlockedIds))
+        } catch {
+          // Storage unavailable; keep in-memory value only.
+        }
       }
       return updated
     })
@@ -577,12 +605,12 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
         highlightDuration = Math.max(100, cfg.buttonHighlight - sequence.length * 15)
       }
 
-      setTimeout(() => {
+      addPendingTimer(() => {
         setActiveButton(null)
         if (sequenceIndex + 1 < sequence.length) {
           setSequenceIndex((prev) => prev + 1)
         } else {
-          setTimeout(() => {
+          addPendingTimer(() => {
             setGameState("waiting")
             setPlayerSequence([])
             if (mode === "speed") {
@@ -628,6 +656,7 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
   // Start new game session with a fresh random seed
   const startGame = () => {
     getAudioContext()
+    clearPendingTimers()
     const newSeed = Math.random() * 100000 + Date.now() % 1000
     setSessionSeed(newSeed)
 
@@ -681,7 +710,14 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
       const padConfig = currentPads.find((p) => p.id === padId) || currentPads[0]
       playTone(padConfig.freq, 0.2)
       setActiveButton(padId)
-      setTimeout(() => setActiveButton(null), 180)
+      addPendingTimer(() => setActiveButton(null), 180)
+
+      // Sequence already fully reproduced — ignore taps during the round
+      // hand-off window (previously caused an unfair instant loss).
+      if (playerSequence.length >= sequence.length) return
+
+      // Debounce rapid double-taps on the same pad within the flash window.
+      if (activeButton === padId) return
 
       const newPlayerSequence = [...playerSequence, padId]
       setPlayerSequence(newPlayerSequence)
@@ -702,12 +738,12 @@ export default function SimonSaysGame({ onBack }: SimonSaysGameProps) {
       }
 
       if (newPlayerSequence.length === sequence.length) {
-        setTimeout(() => {
+        addPendingTimer(() => {
           nextRound()
         }, 600)
       }
     },
-    [gameState, currentPads, playTone, playerSequence, sequence, mode, playGameOverSound, saveHighScore, score, checkAchievements, nextRound]
+    [gameState, currentPads, playTone, playerSequence, sequence, mode, playGameOverSound, saveHighScore, score, checkAchievements, nextRound, activeButton, addPendingTimer]
   )
 
   useEffect(() => {

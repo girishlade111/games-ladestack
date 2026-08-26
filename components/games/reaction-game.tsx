@@ -235,6 +235,7 @@ export default function ReactionGame({ onBack }: ReactionGameProps) {
   const [stroopRound, setStroopRound] = useState<number>(0)
   const [stroopScore, setStroopScore] = useState<number>(0)
   const [stroopTimes, setStroopTimes] = useState<number[]>([])
+  const [stroopAccuracy, setStroopAccuracy] = useState<number | null>(null)
 
   // Timer Ref
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -355,23 +356,21 @@ export default function ReactionGame({ onBack }: ReactionGameProps) {
   // Save Best Score
   const updateHighScore = useCallback(
     (key: string, val: number) => {
-      setHighScores((prev) => {
-        const currentBest = prev[key]
-        if (!currentBest || val < currentBest) {
-          const updated = { ...prev, [key]: val }
-          try {
-            localStorage.setItem("reaction_game_stats_v2", JSON.stringify(updated))
-          } catch {
-            // Ignore
-          }
-          audioEngine.playFanfare()
-          triggerParticles("#f59e0b", 50)
-          return updated
-        }
-        return prev
-      })
+      const currentBest = highScores[key]
+      if (currentBest && val >= currentBest) return
+
+      // Compute + persist outside the updater; celebration side-effects stay out too
+      const updated = { ...highScores, [key]: val }
+      setHighScores(updated)
+      try {
+        localStorage.setItem("reaction_game_stats_v2", JSON.stringify(updated))
+      } catch {
+        // Ignore storage errors
+      }
+      audioEngine.playFanfare()
+      triggerParticles("#f59e0b", 50)
     },
-    [triggerParticles]
+    [highScores, triggerParticles]
   )
 
   // Reset current attempt state
@@ -385,6 +384,7 @@ export default function ReactionGame({ onBack }: ReactionGameProps) {
     setStroopRound(0)
     setStroopScore(0)
     setStroopTimes([])
+    setStroopAccuracy(null)
   }, [])
 
   // Start Signal/Auditory Game
@@ -533,6 +533,7 @@ export default function ReactionGame({ onBack }: ReactionGameProps) {
       if (nextRound > 10) {
         const avg = Math.round(newTimes.reduce((a, b) => a + b, 0) / newTimes.length)
         const adjustedScoreTime = correct ? avg : avg + (10 - newScore) * 150 // Penalty for errors
+        const accuracy = Math.round((newScore / 10) * 100)
         setLastReactionTime(adjustedScoreTime)
         setGameState("clicked")
 
@@ -544,9 +545,10 @@ export default function ReactionGame({ onBack }: ReactionGameProps) {
           mode: "stroop",
           difficulty,
           time: adjustedScoreTime,
-          accuracy: Math.round((newScore / 10) * 100),
+          accuracy,
           timestamp: Date.now(),
         }
+        setStroopAccuracy(accuracy)
         setAttempts((prev) => [newRecord, ...prev])
       } else {
         setStroopRound(nextRound)
@@ -670,7 +672,7 @@ export default function ReactionGame({ onBack }: ReactionGameProps) {
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
           <div className="flex items-center space-x-3">
             <Button
-              onClick={onBack}
+              onClick={() => onBack?.()}
               variant="outline"
               size="sm"
               className="border-slate-700 bg-slate-900/80 hover:bg-slate-800 text-slate-300 rounded-xl"
@@ -968,7 +970,7 @@ export default function ReactionGame({ onBack }: ReactionGameProps) {
                     <div className="space-y-2">
                       <div className="text-5xl font-black text-purple-400">{lastReactionTime} ms</div>
                       <p className="text-slate-400 text-sm">
-                        10-Round Cognitive Speed (Accuracy: {attempts[0]?.accuracy || 100}%)
+                        10-Round Cognitive Speed (Accuracy: {stroopAccuracy ?? 100}%)
                       </p>
                     </div>
                   ) : (

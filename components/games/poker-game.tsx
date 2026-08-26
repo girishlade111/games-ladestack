@@ -15,13 +15,27 @@ type HandRank = "High Card" | "Pair" | "Two Pair" | "Three of a Kind" | "Straigh
 
 interface HandResult { rank: HandRank; score: number; name: string }
 
-function createDeck(): CardT[] { const d: CardT[] = []; for (const suit of SUITS) for (let r = 1; r <= 13; r++) d.push({ suit, rank: r }); return d.sort(() => Math.random() - 0.5) }
+function createDeck(): CardT[] {
+  const d: CardT[] = []
+  for (const suit of SUITS) for (let r = 1; r <= 13; r++) d.push({ suit, rank: r })
+  // Fisher-Yates for a uniform shuffle.
+  for (let i = d.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[d[i], d[j]] = [d[j], d[i]]
+  }
+  return d
+}
 
 function evaluateHand(cards: CardT[]): HandResult {
   const sorted = [...cards].sort((a, b) => b.rank - a.rank)
   const isFlush = sorted.every(c => c.suit === sorted[0].suit)
   const ranks = sorted.map(c => c.rank)
-  const isStraight = ranks[0] - ranks[4] === 4 || (ranks[0] === 13 && ranks[1] === 4 && ranks[2] === 3 && ranks[3] === 2 && ranks[4] === 1)
+  const uniqRanks = [...new Set(ranks)]
+  // Ace plays high (10-J-Q-K-A => ranks 13..10 plus A=1) or low (5-4-3-2-A).
+  const isStraight =
+    uniqRanks.length === 5 &&
+    (uniqRanks[0] - uniqRanks[4] === 4 ||
+      (uniqRanks[0] === 13 && uniqRanks[1] === 12 && uniqRanks[2] === 11 && uniqRanks[3] === 10 && uniqRanks[4] === 1))
   const counts: Record<number, number> = {}
   for (const r of ranks) counts[r] = (counts[r] || 0) + 1
   const vals = Object.entries(counts).sort((a, b) => b[1] - a[1] || parseInt(b[0]) - parseInt(a[0]))
@@ -78,12 +92,9 @@ export default function PokerGame({ themeColor = "#7c3aed" }: { onBack?: () => v
   }, [deck, hand, held, score, bestScore])
 
   const newHand = useCallback(() => {
-    if (score + 10 > bestScore) setBestScore(score + 10)
     const d = createDeck()
     setDeck(d); setHand(d.slice(0, 5)); setHeld([false, false, false, false, false]); setResult(null); setDrawsLeft(1); setPhase("draw")
-  }, [score, bestScore])
-
-  const aiHand = deck.length >= 5 ? evaluateHand(deck.slice(5, 10)) : null
+  }, [])
 
   return (
     <div className="flex flex-col items-center min-h-[550px] px-4">

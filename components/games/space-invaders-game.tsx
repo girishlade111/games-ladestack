@@ -272,6 +272,9 @@ export default function SpaceInvadersGame({
     null,
   )
 
+  // Nuke charges mirrored into state so the HUD badge reacts immediately
+  const [nukeCharges, setNukeCharges] = useState(0)
+
   // References
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animFrameRef = useRef<number | null>(null)
@@ -283,6 +286,10 @@ export default function SpaceInvadersGame({
     shoot: false,
     nuke: false,
   })
+
+  // Frame timing + power-up HUD dedupe
+  const lastFrameTsRef = useRef(0)
+  const powerupHudKeyRef = useRef("")
 
   const gsRef = useRef({
     gameState: "menu" as GameState,
@@ -301,6 +308,7 @@ export default function SpaceInvadersGame({
     invaderStepInterval: 800,
     lastInvaderShot: 0,
     lastUfoSpawn: 0,
+    ufoSpawnThreshold: 28000,
     lastPlayerShot: 0,
     screenShake: 0,
     marchStep: 0,
@@ -684,6 +692,24 @@ export default function SpaceInvadersGame({
     return stars
   }, [])
 
+  // Sync power-up HUD only when its semantic snapshot changes (type + whole remaining second)
+  const syncActivePowerup = useCallback(
+    (type: PowerUpType | null, remainMs: number, durationMs: number) => {
+      const key = type === null ? "" : `${type}:${Math.ceil(remainMs / 1000)}`
+      if (key === powerupHudKeyRef.current) return
+      powerupHudKeyRef.current = key
+      setActivePowerup(
+        type ? { type, label: POWERUP_CONFIGS[type].label, percent: (remainMs / durationMs) * 100 } : null,
+      )
+    },
+    [],
+  )
+
+  // Mirror nuke charges into state only when the value actually changes
+  const syncNukeCharges = useCallback((charges: number) => {
+    setNukeCharges((prev) => (prev === charges ? prev : charges))
+  }, [])
+
   // Start / Reset Game
   const initGame = useCallback(
     (targetDiff: Difficulty = difficulty) => {
@@ -706,6 +732,7 @@ export default function SpaceInvadersGame({
       gsRef.current.invaderStepInterval = Math.max(250, 700 / cfg.invaderSpeed)
       gsRef.current.lastInvaderShot = Date.now()
       gsRef.current.lastUfoSpawn = Date.now()
+      gsRef.current.ufoSpawnThreshold = 16000 + Math.random() * 12000
       gsRef.current.lastPlayerShot = 0
       gsRef.current.screenShake = 0
       gsRef.current.marchStep = 0
@@ -740,9 +767,10 @@ export default function SpaceInvadersGame({
       setWave(1)
       setCombo(0)
       setMaxCombo(0)
-      setActivePowerup(null)
+      syncActivePowerup(null, 0, 1)
+      syncNukeCharges(0)
     },
-    [difficulty, generateInvaders, generateBunkers, initStars, initAudio],
+    [difficulty, generateInvaders, generateBunkers, initStars, initAudio, syncActivePowerup, syncNukeCharges],
   )
 
   // Fire Weapon
@@ -861,6 +889,7 @@ export default function SpaceInvadersGame({
     if (player.nukeCharges <= 0) return
 
     player.nukeCharges--
+    syncNukeCharges(player.nukeCharges)
     gsRef.current.screenShake = 18
     playSynthSound("nuke")
 
@@ -895,7 +924,7 @@ export default function SpaceInvadersGame({
         glow: true,
       })
     }
-  }, [playSynthSound, createParticles, addFloatingText])
+  }, [playSynthSound, createParticles, addFloatingText, syncNukeCharges])
 
   // Drop Powerup Opportunity
   const tryDropPowerup = useCallback(
@@ -934,10 +963,17 @@ export default function SpaceInvadersGame({
       difficulty: diff,
     } = gsRef.current
 
-    if (state !== "playing") return
+    const perfNow = performance.now()
+    if (state !== "playing") {
+      // Keep the timestamp fresh while idle so resuming never applies a huge delta
+      lastFrameTsRef.current = perfNow
+      return
+    }
 
     const now = Date.now()
     const cfg = DIFFICULTY_SETTINGS[diff]
+    const dtMs = Math.min(50, perfNow - lastFrameTsRef.current)
+    lastFrameTsRef.current = perfNow
 
     // 1. Update Player Movement
     if (keysRef.current.left) {
@@ -954,37 +990,29 @@ export default function SpaceInvadersGame({
       triggerNuke()
     }
 
-    // Weapon/Shield Time Counters
+    // Weapon/Shield Time Counters — real-time decay, HUD pushed only on meaningful change
     if (player.shieldActive) {
-      player.shieldTime -= 16
+      player.shieldTime -= dtMs
       if (player.shieldTime <= 0) {
         player.shieldActive = false
-        setActivePowerup(null)
+        syncActivePowerup(null, 0, 1)
       } else {
-        setActivePowerup({
-          type: "shield",
-          label: POWERUP_CONFIGS.shield.label,
-          percent: (player.shieldTime / POWERUP_CONFIGS.shield.duration) * 100,
-        })
+        syncActivePowerup("shield", player.shieldTime, POWERUP_CONFIGS.shield.duration)
       }
     } else if (player.weaponType !== "standard") {
-      player.weaponTime -= 16
+      player.weaponTime -= dtMs
       if (player.weaponTime <= 0) {
         player.weaponType = "standard"
-        setActivePowerup(null)
+        syncActivePowerup(null, 0, 1)
       } else {
         const conf = POWERUP_CONFIGS[player.weaponType as PowerUpType]
         if (conf) {
-          setActivePowerup({
-            type: player.weaponType as PowerUpType,
-            label: conf.label,
-            percent: (player.weaponTime / conf.duration) * 100,
-          })
+          syncActivePowerup(player.weaponType as PowerUpType, player.weaponTime, conf.duration)
         }
       }
     }
 
-    if (player.invulnerableTime > 0) player.invulnerableTime -= 16
+    if (player.invulnerableTime > 0) player.invulnerableTime -= dtMs
 
     // 2. Stars Parallax Movement
     stars.forEach((s) => {
@@ -1062,12 +1090,13 @@ export default function SpaceInvadersGame({
       playSynthSound("laser_invader")
     }
 
-    // 4. Mystery UFO Spawning & Update
-    if (!ufo.active && now - gsRef.current.lastUfoSpawn > 16000 + Math.random() * 12000) {
+    // 4. Mystery UFO Spawning & Update (threshold rolled once per cycle, stored in ref)
+    if (!ufo.active && now - gsRef.current.lastUfoSpawn > gsRef.current.ufoSpawnThreshold) {
       ufo.active = true
       ufo.x = -60
       ufo.speed = 2.8
       gsRef.current.lastUfoSpawn = now
+      gsRef.current.ufoSpawnThreshold = 16000 + Math.random() * 12000
     }
     if (ufo.active) {
       ufo.x += ufo.speed
@@ -1252,7 +1281,7 @@ export default function SpaceInvadersGame({
 
           if (player.shieldActive) {
             player.shieldActive = false
-            setActivePowerup(null)
+            syncActivePowerup(null, 0, 1)
             createParticles(player.x + player.width / 2, player.y + player.height / 2, "#10b981", 15)
             playSynthSound("shield_hit")
           } else {
@@ -1300,6 +1329,7 @@ export default function SpaceInvadersGame({
           player.shieldTime = POWERUP_CONFIGS.shield.duration
         } else if (p.type === "nuke") {
           player.nukeCharges++
+          syncNukeCharges(player.nukeCharges)
           addFloatingText(player.x, player.y - 35, "+1 NUKE CHARGE!", "#ef4444")
         } else if (p.type === "repair") {
           gsRef.current.bunkers = generateBunkers(cfg.bunkerCount)
@@ -1370,6 +1400,8 @@ export default function SpaceInvadersGame({
     createParticles,
     addFloatingText,
     checkAndSaveHighScore,
+    syncActivePowerup,
+    syncNukeCharges,
     autoFire,
     themeColor,
   ])
@@ -1685,11 +1717,18 @@ export default function SpaceInvadersGame({
       if (["Space", "ArrowUp"].includes(e.code)) keysRef.current.shoot = false
     }
 
+    // Clear held keys when the window loses focus so movement/fire don't stick
+    const handleBlur = () => {
+      keysRef.current = { left: false, right: false, shoot: false, nuke: false }
+    }
+
     window.addEventListener("keydown", handleKeyDown)
     window.addEventListener("keyup", handleKeyUp)
+    window.addEventListener("blur", handleBlur)
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
       window.removeEventListener("keyup", handleKeyUp)
+      window.removeEventListener("blur", handleBlur)
     }
   }, [firePlayerWeapon])
 
@@ -1821,10 +1860,10 @@ export default function SpaceInvadersGame({
                     <Rocket key={i} className="w-3.5 h-3.5 text-cyan-400 fill-cyan-400/30" />
                   ))}
                 </div>
-                {gsRef.current.player.nukeCharges > 0 && (
+                {nukeCharges > 0 && (
                   <div className="flex items-center gap-1 text-rose-400 font-bold">
                     <Flame className="w-3.5 h-3.5" />
-                    <span>NUKE ({gsRef.current.player.nukeCharges})</span>
+                    <span>NUKE ({nukeCharges})</span>
                   </div>
                 )}
               </div>
@@ -2043,7 +2082,7 @@ export default function SpaceInvadersGame({
                 Auto-Fire: {autoFire ? "ON" : "OFF"}
               </Button>
 
-              {gsRef.current.player.nukeCharges > 0 && (
+              {nukeCharges > 0 && (
                 <Button
                   onClick={triggerNuke}
                   className="bg-rose-600 hover:bg-rose-500 text-white font-bold h-12 px-4 shadow-lg shadow-rose-950/50"

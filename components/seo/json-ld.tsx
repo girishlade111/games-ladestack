@@ -1,8 +1,31 @@
-import React from 'react'
+import type { ReactElement } from "react"
 
 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://games.ladestack.in'
 
-export function WebSiteJsonLd() {
+/**
+ * Serializes structured data for embedding inside a <script type="application/ld+json">
+ * tag. Escapes "<", ">", "&" and line separators so a value containing "</script>"
+ * can never break out of the script context (XSS hardening).
+ */
+function serializeJsonLd(data: unknown): string {
+  return JSON.stringify(data)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
+}
+
+function JsonLdScript({ data }: { data: unknown }): ReactElement {
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(data) }}
+    />
+  )
+}
+
+export function WebSiteJsonLd(): ReactElement {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
@@ -20,15 +43,10 @@ export function WebSiteJsonLd() {
     },
   }
 
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-    />
-  )
+  return <JsonLdScript data={jsonLd} />
 }
 
-export function OrganizationJsonLd() {
+export function OrganizationJsonLd(): ReactElement {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
@@ -38,12 +56,7 @@ export function OrganizationJsonLd() {
     sameAs: [],
   }
 
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-    />
-  )
+  return <JsonLdScript data={jsonLd} />
 }
 
 export interface VideoGameJsonLdProps {
@@ -53,17 +66,16 @@ export interface VideoGameJsonLdProps {
   longDescription?: string
   category: string
   tags?: string[]
-  themeColor?: string
 }
 
-export function VideoGameJsonLd({
+export function GameJsonLd({
   id,
   title,
   description,
   longDescription,
   category,
   tags = [],
-}: VideoGameJsonLdProps) {
+}: VideoGameJsonLdProps): ReactElement {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
@@ -86,12 +98,7 @@ export function VideoGameJsonLd({
     },
   }
 
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-    />
-  )
+  return <JsonLdScript data={jsonLd} />
 }
 
 export interface BreadcrumbItem {
@@ -99,7 +106,7 @@ export interface BreadcrumbItem {
   url: string
 }
 
-export function BreadcrumbJsonLd({ items }: { items: BreadcrumbItem[] }) {
+export function BreadcrumbJsonLd({ items }: { items: BreadcrumbItem[] }): ReactElement {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -111,12 +118,7 @@ export function BreadcrumbJsonLd({ items }: { items: BreadcrumbItem[] }) {
     })),
   }
 
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-    />
-  )
+  return <JsonLdScript data={jsonLd} />
 }
 
 export function CollectionPageJsonLd({
@@ -125,7 +127,7 @@ export function CollectionPageJsonLd({
 }: {
   count: number
   games?: Array<{ id: string; title: string }>
-}) {
+}): ReactElement {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
@@ -149,12 +151,7 @@ export function CollectionPageJsonLd({
       : {}),
   }
 
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-    />
-  )
+  return <JsonLdScript data={jsonLd} />
 }
 
 export interface FAQItem {
@@ -162,7 +159,7 @@ export interface FAQItem {
   answer: string
 }
 
-export function FAQPageJsonLd({ mainEntity }: { mainEntity: FAQItem[] }) {
+export function FAQPageJsonLd({ mainEntity }: { mainEntity: FAQItem[] }): ReactElement {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
@@ -176,10 +173,5 @@ export function FAQPageJsonLd({ mainEntity }: { mainEntity: FAQItem[] }) {
     })),
   }
 
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-    />
-  )
+  return <JsonLdScript data={jsonLd} />
 }

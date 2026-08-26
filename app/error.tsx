@@ -17,7 +17,8 @@ export default function Error({
     <div className="flex min-h-[60vh] flex-col items-center justify-center p-4 text-center">
       <h2 className="text-2xl font-bold text-red-500 mb-4">Something went wrong!</h2>
       <p className="text-muted-foreground mb-6 text-sm max-w-md">
-        {error.message || 'An unexpected error occurred.'}
+        An unexpected error occurred. Please try again.
+        {error.digest ? ` (Ref: ${error.digest})` : ''}
       </p>
       <button
         onClick={() => reset()}

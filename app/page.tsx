@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import type { ComponentType } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { gameRegistry, categories } from "@/lib/game-registry"
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
   },
 }
 
-const categoryIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+const categoryIcons: Record<string, ComponentType<{ className?: string }>> = {
   Arcade: Zap,
   Puzzle: Brain,
   Strategy: Target,
@@ -26,7 +27,11 @@ const categoryIcons: Record<string, React.ComponentType<{ className?: string }>>
 const stats = [
   { label: "Games", value: gameRegistry.length.toString(), icon: Gamepad2 },
   { label: "Categories", value: categories.filter((c) => c.id !== "All").length.toString(), icon: Zap },
-  { label: "New This Month", value: "5+", icon: Brain },
+  {
+    label: "New This Month",
+    value: gameRegistry.filter((g) => g.isNew).length.toString(),
+    icon: Brain,
+  },
 ]
 
 const featuredGames = gameRegistry.filter((g) => g.isNew).slice(0, 3)

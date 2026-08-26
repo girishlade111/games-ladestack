@@ -23,6 +23,16 @@ function freshDeck(): Card[] {
   return deck
 }
 
+// Shuffle a copy so won cards re-enter the deck in random order (prevents deterministic war cycles).
+function shuffleArray<T>(arr: T[]): T[] {
+  const out = [...arr]
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+}
+
 function CardFace({ card, hidden }: { card?: Card; hidden?: boolean }) {
   if (hidden || !card) {
     return (
@@ -80,11 +90,11 @@ export default function CardWarGame({ themeColor = "#1e293b" }: { onBack?: () =>
     const stake = [...pot, pc, ac]
 
     if (pc.value > ac.value) {
-      p.push(...stake)
+      p.push(...shuffleArray(stake))
       setPot([])
       setMessage(`You take the round (+${stake.length} cards)`)
     } else if (ac.value > pc.value) {
-      a.push(...stake)
+      a.push(...shuffleArray(stake))
       setPot([])
       setMessage(`AI takes the round (+${stake.length} cards)`)
     } else {
@@ -100,8 +110,14 @@ export default function CardWarGame({ themeColor = "#1e293b" }: { onBack?: () =>
 
     if (p.length === 0 || a.length === 0) {
       setPhase("over")
-      const won = p.length > a.length
-      setRecord((r) => ({ wins: r.wins + (won ? 1 : 0), losses: r.losses + (won ? 0 : 1) }))
+      if (p.length === 0 && a.length === 0) {
+        // Both decks burned out in the war — split, no stat change.
+        setMessage("Both decks burned out in the war — it's a draw!")
+      } else {
+        const won = p.length > a.length
+        setMessage(won ? "You win the war!" : "AI wins the war")
+        setRecord((r) => ({ wins: r.wins + (won ? 1 : 0), losses: r.losses + (won ? 0 : 1) }))
+      }
     }
   }, [phase, playerDeck, aiDeck, pot])
 
@@ -168,10 +184,12 @@ export default function CardWarGame({ themeColor = "#1e293b" }: { onBack?: () =>
                 Flip Card
               </Button>
             ) : (
-              <>
-                <div className="text-center w-full">
-                  <div className="text-lg font-bold mb-1">{playerDeck.length > aiDeck.length ? "You win the war!" : "AI wins the war"}</div>
-                  <div className="text-sm text-muted-foreground mb-4">Decided after {rounds} rounds</div>
+                <>
+                  <div className="text-center w-full">
+                    <div className="text-lg font-bold mb-1">
+                      {playerDeck.length === aiDeck.length ? "It's a draw!" : playerDeck.length > aiDeck.length ? "You win the war!" : "AI wins the war"}
+                    </div>
+                    <div className="text-sm text-muted-foreground mb-4">Decided after {rounds} rounds</div>
                   <Button onClick={start} style={{ backgroundColor: themeColor }}>
                     <RotateCcw className="w-4 h-4 mr-2" />
                     Play Again

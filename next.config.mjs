@@ -4,17 +4,13 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   images: {
     unoptimized: true,
-    formats: ['image/avif', 'image/webp'],
-  },
-  serverRuntimeConfig: {
-    allowedHosts: ['.monkeycode-ai.live', 'games.ladestack.in'],
   },
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],

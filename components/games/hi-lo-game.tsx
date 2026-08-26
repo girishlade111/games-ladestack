@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Play, RotateCcw, ArrowUp, ArrowDown } from "lucide-react"
 
@@ -50,8 +50,10 @@ export default function HiLoGame({ themeColor = "#15803d" }: { onBack?: () => vo
   const [score, setScore] = useState(0)
   const [best, setBest] = useState(0)
   const [message, setMessage] = useState("")
+  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const start = useCallback(() => {
+    if (advanceTimerRef.current !== null) { clearTimeout(advanceTimerRef.current); advanceTimerRef.current = null }
     const d = freshDeck()
     setCurrent(d[0])
     setDeck(d.slice(1))
@@ -62,12 +64,20 @@ export default function HiLoGame({ themeColor = "#15803d" }: { onBack?: () => vo
     setPhase("playing")
   }, [])
 
+  // Clear any pending advance timer when the component unmounts.
+  useEffect(() => () => {
+    if (advanceTimerRef.current !== null) clearTimeout(advanceTimerRef.current)
+  }, [])
+
   const guess = useCallback(
     (higher: boolean) => {
       if (phase !== "playing" || !current || deck.length === 0) return
 
       const next = deck[0]
       setRevealed(next)
+
+      // Track the score including this guess so deferred callbacks see the final value.
+      let latestScore = score
 
       // Equal ranks count as a push - the streak survives but scores nothing.
       if (next.value === current.value) {
@@ -76,8 +86,9 @@ export default function HiLoGame({ themeColor = "#15803d" }: { onBack?: () => vo
         const correct = higher ? next.value > current.value : next.value < current.value
         if (correct) {
           const s = streak + 1
+          latestScore = score + 10 * s
           setStreak(s)
-          setScore((v) => v + 10 * s)
+          setScore(latestScore)
           setMessage(`Correct! ${s} in a row.`)
         } else {
           setPhase("over")
@@ -88,14 +99,15 @@ export default function HiLoGame({ themeColor = "#15803d" }: { onBack?: () => vo
       }
 
       // Advance to the revealed card after a beat so the player sees it.
-      setTimeout(() => {
+      advanceTimerRef.current = setTimeout(() => {
+        advanceTimerRef.current = null
         setCurrent(next)
         setRevealed(null)
         setDeck((d) => {
           const rest = d.slice(1)
           if (rest.length === 0) {
             setPhase("over")
-            setBest((b) => Math.max(b, score))
+            setBest((b) => Math.max(b, latestScore))
             setMessage("Deck exhausted — you cleared it!")
           }
           return rest

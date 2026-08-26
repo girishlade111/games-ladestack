@@ -326,6 +326,7 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
   const [totalAttempts, setTotalAttempts] = useState(0)
   const [reactionTimes, setReactionTimes] = useState<number[]>([])
   const [lastMatchStartTime, setLastMatchStartTime] = useState<number>(0)
+  const [feedbackMessage, setFeedbackMessage] = useState("")
 
   // Target and current choices state
   const [targetColorHex, setTargetColorHex] = useState<string>("#ef4444")
@@ -345,14 +346,20 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
   const rotationAngleRef = useRef<number>(0)
   const screenShakeRef = useRef<number>(0)
   const shockwavesRef = useRef<{ x: number; y: number; radius: number; alpha: number; color: string }[]>([])
+  // Locks memory input while waiting for the next sequence playback
+  const awaitingNextRef = useRef(false)
 
   // Load high scores from localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const savedScore = localStorage.getItem(`colormatch_highscore_${mode}_${difficulty}`)
-      const savedStreak = localStorage.getItem(`colormatch_beststreak_${mode}_${difficulty}`)
-      if (savedScore) setHighScore(parseInt(savedScore, 10))
-      if (savedStreak) setBestStreak(parseInt(savedStreak, 10))
+      try {
+        const savedScore = localStorage.getItem(`colormatch_highscore_${mode}_${difficulty}`)
+        const savedStreak = localStorage.getItem(`colormatch_beststreak_${mode}_${difficulty}`)
+        if (savedScore) setHighScore(parseInt(savedScore, 10))
+        if (savedStreak) setBestStreak(parseInt(savedStreak, 10))
+      } catch {
+        // Ignore storage errors
+      }
     }
   }, [mode, difficulty])
 
@@ -527,6 +534,8 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
   // Play memory sequence demo
   const playMemorySequence = useCallback(
     (sequence: number[]) => {
+      // Playback starting: unlock input for the fresh round
+      awaitingNextRef.current = false
       setIsMemoryShowingPattern(true)
       setMemoryPlayerStep(0)
 
@@ -560,6 +569,7 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
     setCorrectMatches(0)
     setTotalAttempts(0)
     setReactionTimes([])
+    setFeedbackMessage("")
     particlesRef.current = []
     shockwavesRef.current = []
 
@@ -578,22 +588,20 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
     setGameState("gameOver")
     soundEngine.playFanfare()
 
-    setHighScore((prev) => {
-      const nextHigh = Math.max(prev, score)
+    // Persist outside updaters so side effects run exactly once
+    const nextHigh = Math.max(highScore, score)
+    const nextBest = Math.max(bestStreak, streak)
+    try {
       if (typeof window !== "undefined") {
         localStorage.setItem(`colormatch_highscore_${mode}_${difficulty}`, nextHigh.toString())
-      }
-      return nextHigh
-    })
-
-    setBestStreak((prev) => {
-      const nextBest = Math.max(prev, streak)
-      if (typeof window !== "undefined") {
         localStorage.setItem(`colormatch_beststreak_${mode}_${difficulty}`, nextBest.toString())
       }
-      return nextBest
-    })
-  }, [score, streak, mode, difficulty])
+    } catch {
+      // Ignore storage errors
+    }
+    setHighScore(nextHigh)
+    setBestStreak(nextBest)
+  }, [highScore, bestStreak, score, streak, mode, difficulty])
 
   // Timer countdown hook
   useEffect(() => {
@@ -628,6 +636,9 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
       const targetY = clickY ?? selectedNode.y
 
       if (mode === "memory") {
+        // Ignore taps with no active step or while the next round is being scheduled
+        if (awaitingNextRef.current || memoryPlayerStep < 0 || memoryPlayerStep >= memorySequence.length) return
+
         // Memory pattern match
         const expectedColorIdx = memorySequence[memoryPlayerStep]
         soundEngine.playColorPitch(COLOR_PALETTE[selectedNode.id]?.freq || 440)
@@ -635,13 +646,19 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
         if (selectedNode.id === expectedColorIdx) {
           // Correct step in sequence
           spawnParticleBurst(targetX, targetY, selectedNode.color)
+          setFeedbackMessage("Correct!")
 
           if (memoryPlayerStep + 1 === memorySequence.length) {
-            // Sequence completed!
+            // Sequence completed! Invalidate the step and lock input immediately
+            // so re-tapping during the hand-off can't double-award points.
+            awaitingNextRef.current = true
+            setMemoryPlayerStep(-1)
+
             const newMatches = correctMatches + 1
             const config = DIFFICULTY_SETTINGS[difficulty]
             const pointsGained = Math.round(100 * config.multiplier + streak * 15)
 
+            setFeedbackMessage(`Correct! Score ${score + pointsGained}.`)
             setScore((prev) => prev + pointsGained)
             setStreak((prev) => {
               const nextStreak = prev + 1
@@ -649,6 +666,7 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
               else soundEngine.playCorrect(nextStreak)
               return nextStreak
             })
+            setBestStreak((prev) => Math.max(prev, streak + 1))
             setCorrectMatches(newMatches)
             setReactionTimes((prev) => [...prev, reactionMs])
 
@@ -663,6 +681,7 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
           // Wrong memory step
           soundEngine.playWrong()
           screenShakeRef.current = 15
+          setFeedbackMessage("Wrong.")
           setStreak(0)
           endGame()
         }
@@ -679,18 +698,21 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
         const config = DIFFICULTY_SETTINGS[difficulty]
         const pointsGained = Math.round((10 + streak * 3) * config.multiplier)
 
+        setFeedbackMessage(`Correct! Score ${score + pointsGained}.`)
         setScore((prev) => prev + pointsGained)
         setStreak((prev) => {
           const nextStreak = prev + 1
           if (nextStreak > 0 && nextStreak % 5 === 0) soundEngine.playStreakFire()
           return nextStreak
         })
+        setBestStreak((prev) => Math.max(prev, streak + 1))
         setCorrectMatches((prev) => prev + 1)
         setReactionTimes((prev) => [...prev, reactionMs])
         generateNewRound()
       } else {
         soundEngine.playWrong()
         screenShakeRef.current = 12
+        setFeedbackMessage(`Wrong. Score ${Math.max(0, score - 5)}.`)
         setStreak(0)
         setScore((prev) => Math.max(0, prev - 5))
         generateNewRound()
@@ -900,8 +922,8 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
         ctx.fillText(`${index + 1}`, nodeX - node.radius + 10, nodeY - node.radius + 10)
       })
 
-      // Shockwaves render
-      shockwavesRef.current.forEach((sw, idx) => {
+      // Shockwaves render (filter-based rebuild; splicing during forEach skips elements)
+      shockwavesRef.current.forEach((sw) => {
         sw.radius += 4
         sw.alpha -= 0.04
         if (sw.alpha > 0) {
@@ -913,13 +935,12 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
           ctx.globalAlpha = sw.alpha
           ctx.stroke()
           ctx.restore()
-        } else {
-          shockwavesRef.current.splice(idx, 1)
         }
       })
+      shockwavesRef.current = shockwavesRef.current.filter((sw) => sw.alpha > 0)
 
       // Particle physics update & render
-      particlesRef.current.forEach((p, idx) => {
+      particlesRef.current.forEach((p) => {
         p.x += p.vx
         p.y += p.vy
         p.alpha -= p.decay
@@ -932,10 +953,9 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
           ctx.fillStyle = p.color
           ctx.fill()
           ctx.restore()
-        } else {
-          particlesRef.current.splice(idx, 1)
         }
       })
+      particlesRef.current = particlesRef.current.filter((p) => p.alpha > 0)
     }
 
     ctx.restore()
@@ -997,6 +1017,10 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 select-none font-sans">
+      {/* Screen reader feedback for color-only results */}
+      <span className="sr-only" aria-live="polite">
+        {feedbackMessage}
+      </span>
       <div className="w-full max-w-5xl space-y-4">
         {/* Top Header Bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-2xl p-4 shadow-xl">
@@ -1202,7 +1226,7 @@ export default function ColorMatchGame({ onBack, themeColor = "#ec4899" }: Color
                   </div>
                   <div>
                     <div className="text-[10px] text-slate-400 uppercase">Best Streak</div>
-                    <div className="text-2xl font-black text-pink-400 font-mono">{streak}x</div>
+                    <div className="text-2xl font-black text-pink-400 font-mono">{bestStreak}x</div>
                   </div>
                   <div>
                     <div className="text-[10px] text-slate-400 uppercase">Avg Reaction</div>

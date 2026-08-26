@@ -108,6 +108,7 @@ export default function StackTowerGame({ themeColor = "#c2410c" }: { onBack?: ()
   useEffect(() => {
     if (phase !== "playing") return
     const onKey = (e: KeyboardEvent) => {
+      if (e.repeat) return // ignore OS key-repeat so holding Space doesn't auto-drop
       if (e.key === " " || e.key === "ArrowDown") {
         e.preventDefault()
         drop()

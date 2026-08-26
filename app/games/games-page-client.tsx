@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useDeferredValue, memo } from "react"
+import { useState, useMemo, useEffect, useDeferredValue, memo } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -50,11 +50,17 @@ const GameCard = memo(function GameCard({ game }: { game: GameMeta }) {
 
 export default function GamesPageClient() {
   const searchParams = useSearchParams()
-  const initialCategory = searchParams.get("category") || "All"
-  const [selectedCategory, setSelectedCategory] = useState(initialCategory)
-  const [searchQuery, setSearchQuery] = useState("")
+  const urlCategory = searchParams.get("category") || "All"
+  const [selectedCategory, setSelectedCategory] = useState(urlCategory)
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "")
   const deferredSearchQuery = useDeferredValue(searchQuery)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+
+  // Keep the active filter in sync with URL navigation (e.g. header links
+  // like /games?category=Arcade clicked while already on the library page).
+  useEffect(() => {
+    setSelectedCategory(urlCategory)
+  }, [urlCategory])
 
   const filteredGames = useMemo(() => {
     let result = selectedCategory === "All" ? gameRegistry : gameRegistry.filter((g) => g.category === selectedCategory)
@@ -96,6 +102,8 @@ export default function GamesPageClient() {
           <div className="relative flex-1 sm:flex-initial">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
+              type="search"
+              aria-label="Search games"
               placeholder="Search games..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -105,6 +113,8 @@ export default function GamesPageClient() {
           <Button
             variant="ghost"
             size="icon"
+            aria-label={viewMode === "grid" ? "Switch to list view" : "Switch to grid view"}
+            aria-pressed={viewMode === "list"}
             onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
           >
             {viewMode === "grid" ? <List className="w-4 h-4" /> : <Grid3X3 className="w-4 h-4" />}

@@ -457,6 +457,7 @@ export default function TetrisGame({ onBack, themeColor }: { onBack: () => void;
   const dropTimerRef = useRef<number>(0)
   const lockTimerRef = useRef<number | null>(null)
   const sprintTimerRef = useRef<number>(0)
+  const previewScratchRef = useRef<HTMLCanvasElement | null>(null)
 
   // Game Engine Internal Mutable State
   const engine = useRef({
@@ -482,8 +483,15 @@ export default function TetrisGame({ onBack, themeColor }: { onBack: () => void;
 
   // Load High Score on Mount
   useEffect(() => {
-    const saved = localStorage.getItem(`tetris_highscore_${difficulty}_${gameMode}`)
-    if (saved) setHighScore(parseInt(saved, 10))
+    try {
+      const saved = localStorage.getItem(`tetris_highscore_${difficulty}_${gameMode}`)
+      if (saved) {
+        const parsed = parseInt(saved, 10)
+        if (!Number.isNaN(parsed)) setHighScore(parsed)
+      }
+    } catch {
+      // Storage unavailable (private mode / blocked); high score stays at 0.
+    }
   }, [difficulty, gameMode])
 
   // Save High Score
@@ -491,7 +499,11 @@ export default function TetrisGame({ onBack, themeColor }: { onBack: () => void;
     (newScore: number) => {
       setHighScore((prev) => {
         if (newScore > prev) {
-          localStorage.setItem(`tetris_highscore_${difficulty}_${gameMode}`, newScore.toString())
+          try {
+            localStorage.setItem(`tetris_highscore_${difficulty}_${gameMode}`, newScore.toString())
+          } catch {
+            // Storage unavailable; keep in-memory value only.
+          }
           return newScore
         }
         return prev
@@ -727,6 +739,9 @@ export default function TetrisGame({ onBack, themeColor }: { onBack: () => void;
       engine.current.currentPiece = createPiece(holdPieceType)
     }
     engine.current.canHold = false
+    // Reset any running lock delay so the freshly spawned piece does not
+    // insta-lock on the ground.
+    lockTimerRef.current = null
   }, [createPiece, getNextPieceType])
 
   // Lock Piece down onto Board
@@ -764,13 +779,21 @@ export default function TetrisGame({ onBack, themeColor }: { onBack: () => void;
 
     // Spawn Particles & Process Clears
     if (clearedLinesCount > 0) {
+      // Spawn particles first, while full rows are still intact
       linesToClear.forEach((rowIdx) => {
         for (let x = 0; x < BOARD_WIDTH; x++) {
           spawnParticles(x, rowIdx, board[rowIdx][x] as string, 6)
         }
-        board.splice(rowIdx, 1)
-        board.unshift(Array(BOARD_WIDTH).fill(0))
       })
+
+      // Rebuild the board without the cleared rows instead of interleaved
+      // splice/unshift (which shifts indices between removals and corrupts
+      // multi-line clears).
+      const keptRows = board.filter((_, y) => !linesToClear.includes(y))
+      while (keptRows.length < BOARD_HEIGHT) {
+        keptRows.unshift(Array(BOARD_WIDTH).fill(0))
+      }
+      engine.current.board = keptRows
 
       engine.current.lines += clearedLinesCount
       engine.current.combo += 1
@@ -841,9 +864,14 @@ export default function TetrisGame({ onBack, themeColor }: { onBack: () => void;
 
       // Check Sprint Mode 40-Line Completion
       if (gameMode === "sprint" && engine.current.lines >= 40) {
+        // Sync final state BEFORE returning so the overlay shows the score
+        // including the last clear's points.
+        setScore(engine.current.score)
+        setLines(engine.current.lines)
+        setLevel(engine.current.level)
+        updateHighScore(engine.current.score)
         setGameState("gameOver")
         audioSynth.playLevelUp()
-        updateHighScore(engine.current.score)
         return
       }
     } else {
@@ -1161,7 +1189,9 @@ export default function TetrisGame({ onBack, themeColor }: { onBack: () => void;
       if (nCtx) {
         nCtx.clearRect(0, 0, 90, 220)
         engine.current.nextQueue.slice(0, 3).forEach((type, idx) => {
-          const tempCanvas = document.createElement("canvas")
+          // Reuse a single offscreen canvas instead of allocating three
+          // new ones every frame.
+          const tempCanvas = previewScratchRef.current ?? (previewScratchRef.current = document.createElement("canvas"))
           tempCanvas.width = 90
           tempCanvas.height = 70
           const tempCtx = tempCanvas.getContext("2d")
@@ -1427,19 +1457,19 @@ export default function TetrisGame({ onBack, themeColor }: { onBack: () => void;
 
           {/* On-Screen Mobile & Touch Control Buttons */}
           <div className="mt-4 grid grid-cols-5 gap-2 w-full">
-            <Button onClick={() => movePiece(-1)} variant="outline" className="border-white/10 bg-slate-900/60 hover:bg-white/10 p-3 h-12">
+            <Button onClick={() => gameState === "playing" && movePiece(-1)} aria-label="Move piece left" variant="outline" className="border-white/10 bg-slate-900/60 hover:bg-white/10 p-3 h-12">
               <ChevronLeft className="w-6 h-6" />
             </Button>
-            <Button onClick={() => rotatePiece(1)} variant="outline" className="border-white/10 bg-slate-900/60 hover:bg-white/10 p-3 h-12">
+            <Button onClick={() => gameState === "playing" && rotatePiece(1)} aria-label="Rotate piece" variant="outline" className="border-white/10 bg-slate-900/60 hover:bg-white/10 p-3 h-12">
               <RotateCw className="w-5 h-5 text-purple-400" />
             </Button>
-            <Button onClick={() => softDrop()} variant="outline" className="border-white/10 bg-slate-900/60 hover:bg-white/10 p-3 h-12">
+            <Button onClick={() => gameState === "playing" && softDrop()} aria-label="Soft drop" variant="outline" className="border-white/10 bg-slate-900/60 hover:bg-white/10 p-3 h-12">
               <ChevronDown className="w-6 h-6" />
             </Button>
-            <Button onClick={() => hardDrop()} variant="outline" className="border-white/10 bg-slate-900/60 hover:bg-white/10 p-3 h-12">
+            <Button onClick={() => gameState === "playing" && hardDrop()} aria-label="Hard drop" variant="outline" className="border-white/10 bg-slate-900/60 hover:bg-white/10 p-3 h-12">
               <ArrowDownToLine className="w-5 h-5 text-cyan-400" />
             </Button>
-            <Button onClick={() => movePiece(1)} variant="outline" className="border-white/10 bg-slate-900/60 hover:bg-white/10 p-3 h-12">
+            <Button onClick={() => gameState === "playing" && movePiece(1)} aria-label="Move piece right" variant="outline" className="border-white/10 bg-slate-900/60 hover:bg-white/10 p-3 h-12">
               <ChevronRight className="w-6 h-6" />
             </Button>
           </div>

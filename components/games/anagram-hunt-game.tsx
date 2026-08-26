@@ -55,16 +55,15 @@ export default function AnagramHuntGame({ themeColor = "#c2410c" }: { onBack?: (
   useEffect(() => {
     if (phase !== "playing") return
     const t = setInterval(() => {
-      setSeconds((s) => {
-        if (s <= 1) {
-          setPhase("over")
-          return 0
-        }
-        return s - 1
-      })
+      setSeconds((s) => Math.max(0, s - 1))
     }, 1000)
     return () => clearInterval(t)
   }, [phase])
+
+  // Terminal phase handled outside the updater (StrictMode-safe)
+  useEffect(() => {
+    if (phase === "playing" && seconds === 0) setPhase("over")
+  }, [phase, seconds])
 
   useEffect(() => {
     if (phase === "over") setBest((b) => Math.max(b, score))
@@ -121,7 +120,7 @@ export default function AnagramHuntGame({ themeColor = "#c2410c" }: { onBack?: (
           <div className="flex justify-between items-center mb-4">
             <span className="text-sm font-medium">Score: {score}</span>
             <span className={`text-sm font-mono ${seconds <= 15 ? "text-red-500 font-bold" : "text-muted-foreground"}`}>
-              0:{String(seconds).padStart(2, "0")}
+              {`${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`}
             </span>
             <span className="text-sm text-muted-foreground">
               {found.length}/{puzzle.words.length}

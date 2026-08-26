@@ -100,9 +100,11 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
   const [totalClicks, setTotalClicks] = useState(0)
   const [successfulPops, setSuccessfulPops] = useState(0)
 
-  // Active Effects
-  const [slowMoTimer, setSlowMoTimer] = useState(0)
-  const [frenzyTimer, setFrenzyTimer] = useState(0)
+  // Active Effects (refs to avoid per-frame setState tearing down the render loop)
+  const slowMoTimerRef = useRef(0)
+  const frenzyTimerRef = useRef(0)
+  const [hudEffects, setHudEffects] = useState({ slowMo: false, frenzy: false })
+  const hudFlushAccumRef = useRef(0)
   const [soundEnabled, setSoundEnabled] = useState(true)
 
   // Canvas & Audio References
@@ -113,6 +115,8 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
   const spawnTimerRef = useRef<number>(0)
   const nextIdRef = useRef<number>(0)
   const shakeIntensityRef = useRef<number>(0)
+  const comboRef = useRef<number>(0)
+  const livesRef = useRef<number>(3)
 
   // Entities stored in refs for 60FPS performance
   const bubblesRef = useRef<Bubble[]>([])
@@ -451,15 +455,12 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
     setBubblesPopped((prev) => prev + 1)
     setSuccessfulPops((prev) => prev + 1)
 
-    // Combo system
-    let currentCombo = 0
-    setCombo((prev) => {
-      currentCombo = prev + 1
-      setMaxCombo((max) => Math.max(max, currentCombo))
-      return currentCombo
-    })
+    // Combo system (tracked via ref so values are available synchronously outside updaters)
+    comboRef.current += 1
+    setCombo(comboRef.current)
+    setMaxCombo((max) => Math.max(max, comboRef.current))
 
-    const pitchScale = Math.min(2.0, 1 + currentCombo * 0.05)
+    const pitchScale = Math.min(2.0, 1 + comboRef.current * 0.05)
 
     // Handle bubble types
     if (bubble.type === "bomb") {
@@ -467,16 +468,15 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
       triggerShake(18)
       createParticles(bubble.x, bubble.y, "#ef4444", 25)
       createFloatingText(bubble.x, bubble.y, "BOMB! -30", "#ef4444")
-      
+
       setScore((s) => Math.max(0, s - 30))
+      comboRef.current = 0
       setCombo(0)
 
       if (mode === "survival") {
-        setLives((l) => {
-          const next = l - 1
-          if (next <= 0) setGameState("gameOver")
-          return Math.max(0, next)
-        })
+        livesRef.current -= 1
+        setLives(Math.max(0, livesRef.current))
+        if (livesRef.current <= 0) setGameState("gameOver")
       } else if (mode === "arcade") {
         setTimeLeft((t) => Math.max(0, t - 3))
       }
@@ -485,8 +485,8 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
 
     // Positive Pops
     let earnedPoints = bubble.points
-    if (currentCombo > 1) {
-      earnedPoints = Math.round(earnedPoints * (1 + (currentCombo - 1) * 0.1))
+    if (comboRef.current > 1) {
+      earnedPoints = Math.round(earnedPoints * (1 + (comboRef.current - 1) * 0.1))
     }
 
     setScore((s) => s + earnedPoints)
@@ -497,7 +497,7 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
       createFloatingText(
         bubble.x,
         bubble.y,
-        `+${earnedPoints}${currentCombo > 2 ? ` (x${currentCombo})` : ""}`,
+        `+${earnedPoints}${comboRef.current > 2 ? ` (x${comboRef.current})` : ""}`,
         bubble.accentColor
       )
     } else if (bubble.type === "gold") {
@@ -508,7 +508,7 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
       playSynthSound("slow")
       createParticles(bubble.x, bubble.y, "#0284c7", 18)
       createFloatingText(bubble.x, bubble.y, "❄️ SLOW MO!", "#7dd3fc")
-      setSlowMoTimer(300) // ~5 seconds
+      slowMoTimerRef.current = 300 // ~5 seconds
     } else if (bubble.type === "lightning") {
       playSynthSound("lightning")
       createParticles(bubble.x, bubble.y, "#7c3aed", 22)
@@ -527,7 +527,7 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
       playSynthSound("rainbow")
       createParticles(bubble.x, bubble.y, "#d946ef", 24)
       createFloatingText(bubble.x, bubble.y, "🌈 FRENZY RUSH!", "#f5d0fe")
-      setFrenzyTimer(240) // ~4 seconds
+      frenzyTimerRef.current = 240 // ~4 seconds
       // Instant bonus spawns
       for (let i = 0; i < 6; i++) {
         spawnBubble("gold")
@@ -568,6 +568,7 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
     } else {
       // Missed click - reset combo unless Zen mode
       if (mode !== "zen") {
+        comboRef.current = 0
         setCombo(0)
       }
     }
@@ -576,15 +577,19 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
   // Reset Game
   const resetGame = useCallback(() => {
     setScore(0)
+    comboRef.current = 0
     setCombo(0)
     setMaxCombo(0)
+    livesRef.current = 3
     setLives(3)
     setTimeLeft(60)
     setBubblesPopped(0)
     setTotalClicks(0)
     setSuccessfulPops(0)
-    setSlowMoTimer(0)
-    setFrenzyTimer(0)
+    slowMoTimerRef.current = 0
+    frenzyTimerRef.current = 0
+    hudFlushAccumRef.current = 0
+    setHudEffects({ slowMo: false, frenzy: false })
     bubblesRef.current = []
     particlesRef.current = []
     floatingTextsRef.current = []
@@ -645,23 +650,24 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
       })
 
       if (gameState === "playing") {
-        // Active effect timers
-        setSlowMoTimer((prev) => Math.max(0, prev - 1))
-        setFrenzyTimer((prev) => Math.max(0, prev - 1))
+        // Active effect timers (ref-based; HUD mirror flushed at most ~4x/sec)
+        if (slowMoTimerRef.current > 0) slowMoTimerRef.current -= 1
+        if (frenzyTimerRef.current > 0) frenzyTimerRef.current -= 1
 
-        const isSlowMo = slowMoTimer > 0
-        const isFrenzy = frenzyTimer > 0
+        const isSlowMo = slowMoTimerRef.current > 0
+        const isFrenzy = frenzyTimerRef.current > 0
 
-        // Timer update for Arcade mode
+        hudFlushAccumRef.current += deltaTime
+        if (hudFlushAccumRef.current >= 250) {
+          hudFlushAccumRef.current = 0
+          setHudEffects((prev) =>
+            prev.slowMo !== isSlowMo || prev.frenzy !== isFrenzy ? { slowMo: isSlowMo, frenzy: isFrenzy } : prev,
+          )
+        }
+
+        // Timer update for Arcade mode (pure decrement; expiry handled by effect below)
         if (mode === "arcade") {
-          setTimeLeft((prev) => {
-            const next = prev - deltaTime / 1000
-            if (next <= 0) {
-              setGameState("gameOver")
-              return 0
-            }
-            return next
-          })
+          setTimeLeft((prev) => Math.max(0, prev - deltaTime / 1000))
         }
 
         // Spawn logic
@@ -784,11 +790,10 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
           if (mode === "survival") {
             const nonBombEscaped = escaped.filter((b) => b.type !== "bomb")
             if (nonBombEscaped.length > 0) {
-              setLives((l) => {
-                const next = l - nonBombEscaped.length
-                if (next <= 0) setGameState("gameOver")
-                return Math.max(0, next)
-              })
+              livesRef.current -= nonBombEscaped.length
+              setLives(Math.max(0, livesRef.current))
+              if (livesRef.current <= 0) setGameState("gameOver")
+              comboRef.current = 0
               setCombo(0)
               triggerShake(8)
             }
@@ -796,6 +801,7 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
             // Escaped bubble breaks combo
             const nonBombEscaped = escaped.filter((b) => b.type !== "bomb")
             if (nonBombEscaped.length > 0) {
+              comboRef.current = 0
               setCombo(0)
             }
           }
@@ -848,7 +854,14 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
 
     animationId = requestAnimationFrame(render)
     return () => cancelAnimationFrame(animationId)
-  }, [gameState, mode, slowMoTimer, frenzyTimer, getDifficultySettings, spawnBubble, triggerShake])
+  }, [gameState, mode, getDifficultySettings, spawnBubble, triggerShake])
+
+  // Arcade timer expiry triggers game over (side effect kept out of the render loop updater)
+  useEffect(() => {
+    if (mode === "arcade" && gameState === "playing" && timeLeft <= 0) {
+      setGameState("gameOver")
+    }
+  }, [mode, gameState, timeLeft])
 
   // Save High Score on Game Over
   useEffect(() => {
@@ -856,7 +869,11 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
       if (score > highScore) {
         setHighScore(score)
         const key = `bubble-pop-best-${mode}-${difficulty}`
-        localStorage.setItem(key, score.toString())
+        try {
+          localStorage.setItem(key, score.toString())
+        } catch {
+          // Ignore storage write errors
+        }
       }
     }
   }, [gameState, score, highScore, mode, difficulty])
@@ -965,24 +982,26 @@ export default function BubblePopGame({ onBack, themeColor }: BubblePopGameProps
       </div>
 
       {/* Main Interactive Canvas */}
-      <div className="relative flex-1 w-full h-full bg-slate-950 cursor-crosshair">
-        <canvas
-          ref={canvasRef}
-          width={900}
-          height={650}
-          onPointerDown={handleCanvasPointerDown}
-          className="w-full h-full object-cover touch-none"
-        />
+      <div className="relative flex-1 w-full flex items-center justify-center overflow-hidden bg-slate-950 cursor-crosshair">
+        <div className="relative w-full aspect-[900/650]">
+          <canvas
+            ref={canvasRef}
+            width={900}
+            height={650}
+            onPointerDown={handleCanvasPointerDown}
+            className="block w-full h-auto touch-none"
+          />
+        </div>
 
         {/* Active Power-up Overlay Indicators */}
         {gameState === "playing" && (
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 flex gap-3 pointer-events-none">
-            {slowMoTimer > 0 && (
+            {hudEffects.slowMo && (
               <div className="flex items-center gap-1.5 px-3 py-1 bg-cyan-500/20 backdrop-blur-md border border-cyan-400/40 rounded-full text-cyan-300 font-bold text-xs animate-pulse">
                 <Clock className="w-3.5 h-3.5" /> Slow-Mo Active!
               </div>
             )}
-            {frenzyTimer > 0 && (
+            {hudEffects.frenzy && (
               <div className="flex items-center gap-1.5 px-3 py-1 bg-purple-500/20 backdrop-blur-md border border-purple-400/40 rounded-full text-purple-300 font-bold text-xs animate-pulse">
                 <Sparkles className="w-3.5 h-3.5" /> Bubble Frenzy!
               </div>

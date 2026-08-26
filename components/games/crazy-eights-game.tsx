@@ -56,6 +56,8 @@ export default function CrazyEightsGame({ themeColor = "#6d28d9" }: { onBack?: (
   const [turn, setTurn] = useState<"you" | "ai">("you")
   const [message, setMessage] = useState("")
   const [record, setRecord] = useState({ wins: 0, losses: 0 })
+  // Consecutive empty-deck passes (you then AI) — two in a row means deadlock.
+  const [passStreak, setPassStreak] = useState(0)
 
   const start = useCallback(() => {
     const d = freshDeck()
@@ -70,6 +72,7 @@ export default function CrazyEightsGame({ themeColor = "#6d28d9" }: { onBack?: (
     setPile([first])
     setActiveSuit(first.suit)
     setTurn("you")
+    setPassStreak(0)
     setMessage("Match the suit or rank, or play an 8 to change suit")
     setPhase("playing")
   }, [])
@@ -82,11 +85,26 @@ export default function CrazyEightsGame({ themeColor = "#6d28d9" }: { onBack?: (
     setRecord((r) => ({ wins: r.wins + (youWon ? 1 : 0), losses: r.losses + (youWon ? 0 : 1) }))
   }, [])
 
+  // Deadlock: nobody can move and the stock is empty — fewest cards wins.
+  const finishByCardCount = useCallback((yourCards: number, aiCards: number) => {
+    setPhase("over")
+    if (yourCards < aiCards) {
+      setMessage("Nobody can move and the deck is empty — you hold fewer cards, you win!")
+      setRecord((r) => ({ wins: r.wins + 1, losses: r.losses }))
+    } else if (aiCards < yourCards) {
+      setMessage("Nobody can move and the deck is empty — AI holds fewer cards, AI wins")
+      setRecord((r) => ({ wins: r.wins, losses: r.losses + 1 }))
+    } else {
+      setMessage("Nobody can move and the deck is empty — equal hands, it's a draw!")
+    }
+  }, [])
+
   const playCard = useCallback(
     (index: number) => {
       if (phase !== "playing" || turn !== "you") return
       const card = hand[index]
       if (!playable(card, top, activeSuit)) return
+      setPassStreak(0)
 
       const nextHand = hand.filter((_, i) => i !== index)
       setHand(nextHand)
@@ -121,15 +139,22 @@ export default function CrazyEightsGame({ themeColor = "#6d28d9" }: { onBack?: (
   const drawCard = useCallback(() => {
     if (phase !== "playing" || turn !== "you") return
     if (deck.length === 0) {
+      const nextPasses = passStreak + 1
+      setPassStreak(nextPasses)
+      if (nextPasses >= 2) {
+        finishByCardCount(hand.length, aiHand.length)
+        return
+      }
       setMessage("Deck is empty — turn passes")
       setTurn("ai")
       return
     }
     setHand((h) => [...h, deck[0]])
     setDeck((d) => d.slice(1))
+    setPassStreak(0)
     setMessage("You drew a card")
     setTurn("ai")
-  }, [phase, turn, deck])
+  }, [phase, turn, deck, passStreak, hand, aiHand, finishByCardCount])
 
   // AI turn: play the first legal card, preferring to keep eights in reserve.
   useEffect(() => {
@@ -140,12 +165,19 @@ export default function CrazyEightsGame({ themeColor = "#6d28d9" }: { onBack?: (
 
       if (!pick) {
         if (deck.length === 0) {
+          const nextPasses = passStreak + 1
+          setPassStreak(nextPasses)
+          if (nextPasses >= 2) {
+            finishByCardCount(hand.length, aiHand.length)
+            return
+          }
           setMessage("AI can't move and the deck is empty — your turn")
           setTurn("you")
           return
         }
         setAiHand((h) => [...h, deck[0]])
         setDeck((d) => d.slice(1))
+        setPassStreak(0)
         setMessage("AI drew a card")
         setTurn("you")
         return
@@ -154,6 +186,7 @@ export default function CrazyEightsGame({ themeColor = "#6d28d9" }: { onBack?: (
       const nextAi = aiHand.filter((_, i) => i !== pick.i)
       setAiHand(nextAi)
       setPile((p) => [...p, pick.c])
+      setPassStreak(0)
 
       if (nextAi.length === 0) {
         setActiveSuit(pick.c.suit)
@@ -177,7 +210,7 @@ export default function CrazyEightsGame({ themeColor = "#6d28d9" }: { onBack?: (
       setTurn("you")
     }, 700)
     return () => clearTimeout(timer)
-  }, [phase, turn, aiHand, top, activeSuit, deck, finish])
+  }, [phase, turn, aiHand, top, activeSuit, deck, hand, passStreak, finish, finishByCardCount])
 
   const canPlayAnything = hand.some((c) => playable(c, top, activeSuit))
 

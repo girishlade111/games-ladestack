@@ -497,108 +497,105 @@ export default function ConnectFourGame({ onBack, themeColor }: ConnectFourGameP
     [difficulty, minimax],
   )
 
-  // Execute a piece drop
+  // Execute a piece drop.
+  // Computes the resulting board synchronously from `board` so all follow-up
+  // logic (sound, win detection, turn switch) always runs — the previous
+  // implementation performed work inside the setBoard updater, which React may
+  // skip or run twice, leaving the game in an inconsistent state.
   const dropPiece = useCallback(
     (col: number, player: Player) => {
+      if (board[0][col] !== 0) return // Column full
+
       let droppedRow = -1
-      setBoard((prevBoard) => {
-        if (prevBoard[0][col] !== 0) return prevBoard // Column full
-
-        const newBoard = prevBoard.map((row) => [...row])
-        for (let r = ROWS - 1; r >= 0; r--) {
-          if (newBoard[r][col] === 0) {
-            newBoard[r][col] = player
-            droppedRow = r
-            break
-          }
+      const nextBoard = board.map((row) => [...row])
+      for (let r = ROWS - 1; r >= 0; r--) {
+        if (nextBoard[r][col] === 0) {
+          nextBoard[r][col] = player
+          droppedRow = r
+          break
         }
-        return newBoard
-      })
+      }
+      if (droppedRow === -1) return
 
-      if (droppedRow !== -1) {
-        playSound("drop", droppedRow)
-        setLastMove({ row: droppedRow, col })
-        setHintCol(null)
+      setBoard(nextBoard)
+      playSound("drop", droppedRow)
+      setLastMove({ row: droppedRow, col })
+      setHintCol(null)
 
-        // Save history for undo
-        setHistory((prev) => [
-          ...prev,
-          {
-            board: board.map((r) => [...r]),
-            currentPlayer: player,
-            lastMove,
-          },
-        ])
+      // Save history for undo
+      setHistory((prev) => [
+        ...prev,
+        {
+          board: board.map((r) => [...r]),
+          currentPlayer: player,
+          lastMove,
+        },
+      ])
 
-        // Verify winner with new board
-        const nextBoard = board.map((row) => [...row])
-        nextBoard[droppedRow][col] = player
+      const win = checkWinner(nextBoard)
+      if (win) {
+        setGameState("won")
+        setWinResult(win)
+        playSound("win")
 
-        const win = checkWinner(nextBoard)
-        if (win) {
-          setGameState("won")
-          setWinResult(win)
-          playSound("win")
+        // Update statistics
+        setStats((prev) => {
+          let pvpWins1 = prev.pvpWins1
+          let pvpWins2 = prev.pvpWins2
+          let cpuWins = prev.cpuWins
+          let cpuLosses = prev.cpuLosses
+          let currentStreak = prev.currentStreak
+          let bestStreak = prev.bestStreak
 
-          // Update statistics
-          setStats((prev) => {
-            let pvpWins1 = prev.pvpWins1
-            let pvpWins2 = prev.pvpWins2
-            let cpuWins = prev.cpuWins
-            let cpuLosses = prev.cpuLosses
-            let currentStreak = prev.currentStreak
-            let bestStreak = prev.bestStreak
-
-            if (gameMode === "pvp") {
-              if (win.winner === 1) pvpWins1++
-              else pvpWins2++
+          if (gameMode === "pvp") {
+            if (win.winner === 1) pvpWins1++
+            else pvpWins2++
+          } else {
+            if (win.winner === 1) {
+              cpuLosses++ // Player won against CPU
+              currentStreak++
+              if (currentStreak > bestStreak) bestStreak = currentStreak
             } else {
-              if (win.winner === 1) {
-                cpuLosses++ // Player won against CPU
-                currentStreak++
-                if (currentStreak > bestStreak) bestStreak = currentStreak
-              } else {
-                cpuWins++ // CPU won
-                currentStreak = 0
-              }
+              cpuWins++ // CPU won
+              currentStreak = 0
             }
-
-            const updated: GameStats = {
-              ...prev,
-              pvpWins1,
-              pvpWins2,
-              cpuWins,
-              cpuLosses,
-              currentStreak,
-              bestStreak,
-              totalGames: prev.totalGames + 1,
-            }
-            try {
-              localStorage.setItem("connect_four_stats", JSON.stringify(updated))
-            } catch {}
-            return updated
-          })
-        } else if (isBoardFull(nextBoard)) {
-          setGameState("draw")
-          playSound("draw")
-          setStats((prev) => {
-            const updated = {
-              ...prev,
-              draws: prev.draws + 1,
-              totalGames: prev.totalGames + 1,
-            }
-            try {
-              localStorage.setItem("connect_four_stats", JSON.stringify(updated))
-            } catch {}
-            return updated
-          })
-        } else {
-          // Switch Turn
-          const nextPlayer: Player = player === 1 ? 2 : 1
-          setCurrentPlayer(nextPlayer)
-          if (timerSeconds > 0) {
-            setTimeLeft(timerSeconds)
           }
+
+          const updated: GameStats = {
+            ...prev,
+            pvpWins1,
+            pvpWins2,
+            cpuWins,
+            cpuLosses,
+            currentStreak,
+            bestStreak,
+            totalGames: prev.totalGames + 1,
+          }
+          try {
+            localStorage.setItem("connect_four_stats", JSON.stringify(updated))
+          } catch {}
+          return updated
+        })
+      } else if (isBoardFull(nextBoard)) {
+        setGameState("draw")
+        playSound("draw")
+        setStats((prev) => {
+          const updated = {
+            ...prev,
+            draws: prev.draws + 1,
+            totalGames: prev.totalGames + 1,
+          }
+          try {
+            localStorage.setItem("connect_four_stats", JSON.stringify(updated))
+          } catch {}
+          return updated
+        })
+      } else {
+        // Switch Turn
+        const nextPlayer: Player = player === 1 ? 2 : 1
+        setCurrentPlayer(nextPlayer)
+        if (timerSeconds > 0) {
+          setTimeLeft(timerSeconds)
         }
       }
     },
@@ -636,25 +633,26 @@ export default function ConnectFourGame({ onBack, themeColor }: ConnectFourGameP
     if (gameState !== "playing" || timerSeconds === 0) return
 
     const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          // Timer expired - auto random drop or switch turn
-          const validCols: number[] = []
-          for (let c = 0; c < COLS; c++) {
-            if (board[0][c] === 0) validCols.push(c)
-          }
-          if (validCols.length > 0) {
-            const randomCol = validCols[Math.floor(Math.random() * validCols.length)]
-            dropPiece(randomCol, currentPlayer)
-          }
-          return timerSeconds
-        }
-        return prev - 1
-      })
+      setTimeLeft((prev) => Math.max(0, prev - 1))
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [board, currentPlayer, dropPiece, gameState, timerSeconds])
+  }, [gameState, timerSeconds])
+
+  // Handle turn-timer expiry outside of any state updater so it fires
+  // exactly once.
+  useEffect(() => {
+    if (gameState !== "playing" || timerSeconds === 0 || timeLeft !== 0) return
+
+    const validCols: number[] = []
+    for (let c = 0; c < COLS; c++) {
+      if (board[0][c] === 0) validCols.push(c)
+    }
+    if (validCols.length > 0) {
+      const randomCol = validCols[Math.floor(Math.random() * validCols.length)]
+      dropPiece(randomCol, currentPlayer)
+    }
+  }, [timeLeft, gameState, timerSeconds, board, currentPlayer, dropPiece])
 
   // Hint Generator
   const handleGenerateHint = () => {

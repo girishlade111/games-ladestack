@@ -445,6 +445,14 @@ export default function SolitaireGame({
     return card.suit === topCard.suit && card.rank === topCard.rank + 1
   }
 
+  // Resolve a selection to its actual card object in any pile type
+  const resolveSelectedCard = (sc: SelectedCardInfo): PlayingCard | undefined => {
+    if (sc.pile === "tableau" && sc.colIndex !== undefined) return tableau[sc.colIndex]?.[sc.cardIndex]
+    if (sc.pile === "waste") return waste[sc.cardIndex]
+    if (sc.pile === "foundation" && sc.colIndex !== undefined) return foundations[sc.colIndex]?.[sc.cardIndex]
+    return undefined
+  }
+
   // Draw card from Stock
   const handleStockClick = () => {
     setHint(null)
@@ -458,7 +466,7 @@ export default function SolitaireGame({
       if (difficulty === "medium" && stockPasses >= 3) return // 3 passes max
 
       recordHistory()
-      const newStock = waste.reverse().map((c) => ({ ...c, faceUp: false }))
+      const newStock = [...waste].reverse().map((c) => ({ ...c, faceUp: false }))
       setStock(newStock)
       setWaste([])
       setStockPasses((p) => p + 1)
@@ -548,11 +556,12 @@ export default function SolitaireGame({
           setMoves((m) => m + 1)
           
           // Scoring
+          const scoreDelta = fromPile === "waste" ? 5 : fromPile === "foundation" ? -15 : 0
           if (fromPile === "waste") setScore((s) => s + 5)
           if (fromPile === "foundation") setScore((s) => Math.max(0, s - 15))
 
           audio.playSnap()
-          checkWinState(newTableau, foundations)
+          checkWinState(newTableau, foundations, score + scoreDelta, moves + 1, timer)
           return
         }
       }
@@ -596,7 +605,7 @@ export default function SolitaireGame({
           setScore((s) => s + gain)
 
           audio.playFoundation()
-          checkWinState(tableau, newFoundations)
+          checkWinState(tableau, newFoundations, score + gain, moves + 1, timer)
           return
         }
       }
@@ -662,7 +671,7 @@ export default function SolitaireGame({
         setMoves((m) => m + 1)
         setScore((s) => s + (difficulty === "vegas" ? 5 : 10))
         audio.playFoundation()
-        checkWinState(tableau, newFoundations)
+        checkWinState(tableau, newFoundations, score + (difficulty === "vegas" ? 5 : 10), moves + 1, timer)
         return
       }
     }
@@ -698,7 +707,9 @@ export default function SolitaireGame({
   }
 
   // Check Win Condition
-  const checkWinState = (t: PlayingCard[][], f: PlayingCard[][]) => {
+  // Final score/moves/time must be passed in explicitly: state updates from the
+  // last move haven't landed when this runs, so closure values would be stale.
+  const checkWinState = (t: PlayingCard[][], f: PlayingCard[][], finalScore: number, finalMoves: number, finalTime: number) => {
     const totalFoundationCount = f.reduce((sum, pile) => sum + pile.length, 0)
     if (totalFoundationCount === 52) {
       setIsTimerRunning(false)
@@ -709,9 +720,9 @@ export default function SolitaireGame({
         const next: SolitaireStats = {
           gamesPlayed: prev.gamesPlayed,
           gamesWon: prev.gamesWon + 1,
-          bestScore: Math.max(prev.bestScore, score + 100),
-          bestTime: prev.bestTime === 0 ? timer : Math.min(prev.bestTime, timer),
-          fewestMoves: prev.fewestMoves === 0 ? moves + 1 : Math.min(prev.fewestMoves, moves + 1),
+          bestScore: Math.max(prev.bestScore, finalScore),
+          bestTime: prev.bestTime === 0 ? finalTime : Math.min(prev.bestTime, finalTime),
+          fewestMoves: prev.fewestMoves === 0 ? finalMoves : Math.min(prev.fewestMoves, finalMoves),
           winStreak: prev.winStreak + 1
         }
         try {
@@ -841,10 +852,14 @@ export default function SolitaireGame({
   // Run Auto Complete sequence
   const handleAutoComplete = async () => {
     if (isAutoCompleting) return
+    // Snapshot before starting so undo returns to the pre-auto-complete state
+    recordHistory()
     setIsAutoCompleting(true)
 
     const currentTableau = tableau.map((col) => [...col])
     const currentFoundations = foundations.map((f) => [...f])
+    let autoGained = 0
+    let autoMoved = 0
 
     while (true) {
       let movedAny = false
@@ -860,6 +875,8 @@ export default function SolitaireGame({
               setFoundations(currentFoundations.map((f) => [...f]))
               setScore((s) => s + 10)
               setMoves((m) => m + 1)
+              autoGained += 10
+              autoMoved += 1
               audio.playFoundation()
               movedAny = true
               await new Promise((res) => setTimeout(res, 80))
@@ -872,7 +889,7 @@ export default function SolitaireGame({
     }
 
     setIsAutoCompleting(false)
-    checkWinState(currentTableau, currentFoundations)
+    checkWinState(currentTableau, currentFoundations, score + autoGained, moves + autoMoved, timer)
   }
 
   // Render Card Component
@@ -1054,6 +1071,7 @@ export default function SolitaireGame({
             size="sm"
             className="border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200"
             onClick={() => startNewGame()}
+            disabled={isAutoCompleting}
           >
             <RotateCcw className="w-4 h-4 sm:mr-1" />
             <span className="hidden sm:inline">New Game</span>
@@ -1206,14 +1224,11 @@ export default function SolitaireGame({
             {/* Foundations Piles */}
             <div className="flex gap-2 sm:gap-3">
               {foundations.map((fPile, fIdx) => {
+                const selectedResolved = selectedCard ? resolveSelectedCard(selectedCard) : undefined
                 const isTarget =
-                  selectedCard &&
-                  canPlaceOnFoundation(
-                    selectedCard.pile === "tableau"
-                      ? tableau[selectedCard.colIndex!][selectedCard.cardIndex]
-                      : waste[selectedCard.cardIndex],
-                    fPile
-                  )
+                  selectedCard !== null &&
+                  selectedResolved !== undefined &&
+                  canPlaceOnFoundation(selectedResolved, fPile)
 
                 return (
                   <div
@@ -1245,15 +1260,11 @@ export default function SolitaireGame({
           {/* Tableau Columns */}
           <div className="grid grid-cols-7 gap-1 sm:gap-2 justify-items-center min-h-[360px] pt-2">
             {tableau.map((col, colIdx) => {
+              const selectedResolved = selectedCard ? resolveSelectedCard(selectedCard) : undefined
               const isTarget =
-                selectedCard &&
-                selectedCard.pile &&
-                canPlaceOnTableau(
-                  selectedCard.pile === "tableau"
-                    ? tableau[selectedCard.colIndex!][selectedCard.cardIndex]
-                    : waste[selectedCard.cardIndex],
-                  col[col.length - 1]
-                )
+                selectedCard !== null &&
+                selectedResolved !== undefined &&
+                canPlaceOnTableau(selectedResolved, col[col.length - 1])
 
               return (
                 <div

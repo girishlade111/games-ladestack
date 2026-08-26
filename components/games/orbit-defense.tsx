@@ -34,6 +34,7 @@ const PLANET_RADIUS = 52
 const PLANET_X = CANVAS_WIDTH / 2
 const PLANET_Y = CANVAS_HEIGHT / 2
 const SATELLITE_RADIUS = 14
+const SATELLITE_MAX_HEALTH = 50
 
 export type DifficultyLevel = "cadet" | "commander" | "admiral" | "nightmare"
 
@@ -238,6 +239,8 @@ interface Satellite {
   targetPriority: "first" | "strongest" | "closest" | "weakest"
   kills: number
   totalDamage: number
+  health: number
+  maxHealth: number
 }
 
 interface Enemy {
@@ -545,6 +548,8 @@ let nextPowerUpId = 1
 export default function OrbitDefense({ onBack, themeColor = "#6366f1" }: OrbitDefenseProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const gameLoopRef = useRef<number | null>(null)
+  const waveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sessionCounterRef = useRef(0)
 
   // Game UI States
   const [gameState, setGameState] = useState<"menu" | "playing" | "paused" | "gameOver">("menu")
@@ -865,6 +870,8 @@ export default function OrbitDefense({ onBack, themeColor = "#6366f1" }: OrbitDe
         targetPriority: "first",
         kills: 0,
         totalDamage: 0,
+        health: SATELLITE_MAX_HEALTH,
+        maxHealth: SATELLITE_MAX_HEALTH,
       }
 
       gameStateRef.current.satellites.push(newSat)
@@ -1018,6 +1025,14 @@ export default function OrbitDefense({ onBack, themeColor = "#6366f1" }: OrbitDe
   // Initialize Fresh Game Session
   const initGameSession = useCallback(() => {
     const config = DIFFICULTY_SETTINGS[difficulty]
+
+    // Kill any pending wave timer from a previous session & invalidate stale callbacks
+    if (waveTimeoutRef.current) {
+      clearTimeout(waveTimeoutRef.current)
+      waveTimeoutRef.current = null
+    }
+    sessionCounterRef.current += 1
+
     nextSatelliteId = 1
     nextEnemyId = 1
     nextBulletId = 1
@@ -1138,8 +1153,10 @@ export default function OrbitDefense({ onBack, themeColor = "#6366f1" }: OrbitDe
         state.planet.shield = Math.min(state.planet.maxShield, state.planet.shield + 20)
         setPlanetShield(state.planet.shield)
 
-        setTimeout(() => {
-          if (gameStateRef.current.planet.health > 0) {
+        // Session-token guard prevents a stale timer from advancing waves across restarts
+        const sessionToken = sessionCounterRef.current
+        waveTimeoutRef.current = setTimeout(() => {
+          if (sessionToken === sessionCounterRef.current && gameStateRef.current.planet.health > 0) {
             startWave(gameStateRef.current.wave + 1)
           }
         }, 3000)
@@ -1248,6 +1265,29 @@ export default function OrbitDefense({ onBack, themeColor = "#6366f1" }: OrbitDe
 
       if (b.life <= 0) {
         state.bullets.splice(i, 1)
+        continue
+      }
+
+      // Enemy lasers strike satellites instead of colliding with their own fleet
+      if (b.type === "enemy_laser") {
+        for (let j = state.satellites.length - 1; j >= 0; j--) {
+          const sat = state.satellites[j]
+          if (Math.hypot(b.x - sat.x, b.y - sat.y) <= sat.radius + b.radius + 4) {
+            sat.health -= b.damage
+            spawnParticles(b.x, b.y, b.color, 6)
+
+            if (sat.health <= 0) {
+              spawnParticles(sat.x, sat.y, TURRET_TYPES[sat.type].color, 14, "spark")
+              spawnShockwave(sat.x, sat.y, b.color, 35)
+              audioSynth.play("explosion")
+              state.satellites.splice(j, 1)
+              if (selectedSatelliteId === sat.id) setSelectedSatelliteId(null)
+            }
+
+            state.bullets.splice(i, 1)
+            break
+          }
+        }
         continue
       }
 
@@ -1841,6 +1881,15 @@ export default function OrbitDefense({ onBack, themeColor = "#6366f1" }: OrbitDe
       if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current)
     }
   }, [gameState, updateGame])
+
+  // Clear any pending wave timer on unmount
+  useEffect(() => {
+    return () => {
+      if (waveTimeoutRef.current) {
+        clearTimeout(waveTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const selectedSatObj = gameStateRef.current.satellites.find((s) => s.id === selectedSatelliteId)
 

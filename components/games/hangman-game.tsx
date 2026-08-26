@@ -81,7 +81,11 @@ export default function HangmanGame({ themeColor = "#8b5cf6" }: { onBack?: () =>
             <Button variant="ghost" size="sm" onClick={startGame}><RotateCcw className="w-3.5 h-3.5 mr-1" />New</Button>
           </div>
           <div className="flex justify-center mb-4">
-            <svg viewBox="0 0 200 250" className="w-40 h-50 stroke-gray-700 dark:stroke-gray-300">{hangmanParts.slice(0, wrongGuesses)}</svg>
+            <svg viewBox="0 0 200 250" className="w-40 h-50 stroke-gray-700 dark:stroke-gray-300">
+              {/* Gallows structure is always drawn; body segments appear per wrong guess */}
+              {hangmanParts.slice(0, 4)}
+              {hangmanParts.slice(4, 4 + wrongGuesses)}
+            </svg>
           </div>
           <div className="text-center mb-6">
             <span className="text-3xl font-mono tracking-widest font-bold">{displayWord}</span>

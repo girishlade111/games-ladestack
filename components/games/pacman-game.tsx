@@ -49,6 +49,10 @@ const DIR_RIGHT: Direction = { x: 1, y: 0 }
 const GRID_COLS = 28
 const GRID_ROWS = 31
 
+// The only maze row with open (walkable) edge corridors, verified against INITIAL_MAZE:
+// rows 10-12 and 16-18 also have open edge cells but are sealed dead zones unreachable in play
+const TUNNEL_ROW = 14
+
 // 1: Wall, 2: Dot, 3: Power Pellet, 0: Empty, 4: Ghost House Pen, 5: Ghost Gate
 const INITIAL_MAZE = [
   [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
@@ -482,6 +486,9 @@ export default function PacmanGame({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const animFrameId = useRef<number>(0)
   const phaseRef = useRef<"menu" | "playing" | "paused" | "gameover" | "won">("menu")
+  // Authoritative mirrors so saveStats never reads a stale closure value
+  const scoreRef = useRef<number>(0)
+  const livesRef = useRef<number>(3)
 
   // Pac-Man position (in grid tile coordinates float e.g. 13.5, 23.0)
   const pacmanRef = useRef({
@@ -693,9 +700,11 @@ export default function PacmanGame({
       setGhostCombo(1)
 
       if (resetLevel) {
+        scoreRef.current = 0
         setScore(0)
         setLevel(1)
-        setLives(DIFFICULTY_CONFIG[difficulty].lives)
+        livesRef.current = DIFFICULTY_CONFIG[difficulty].lives
+        setLives(livesRef.current)
         ghostsEatenSessionRef.current = 0
         dotsEatenSessionRef.current = 0
       }
@@ -749,12 +758,18 @@ export default function PacmanGame({
     })
   }
 
+  // Single source of truth for scoring: keeps the ref authoritative for saveStats
+  const addScore = (points: number) => {
+    scoreRef.current += points
+    setScore(scoreRef.current)
+  }
+
   // ----------------------------------------------------
   // GRID COLLISION & MOVEMENT HELPERS
   // ----------------------------------------------------
   const isTileWalkable = (row: number, col: number, isGhost: boolean = false, isEaten: boolean = false): boolean => {
     // Warp Tunnels out of bounds horizontally
-    if ((col < 0 || col >= GRID_COLS) && row === 14) return true
+    if ((col < 0 || col >= GRID_COLS) && row === TUNNEL_ROW) return true
     if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) return false
 
     const tile = mazeRef.current[row][col]
@@ -784,7 +799,7 @@ export default function PacmanGame({
     const nextY = y + dir.y * 0.4
 
     // Handle horizontal Warp Tunnel wrap
-    if (Math.floor(nextY) === 14) {
+    if (Math.floor(nextY) === TUNNEL_ROW) {
       if (nextX < 0 || nextX >= GRID_COLS) return true
     }
 
@@ -853,16 +868,55 @@ export default function PacmanGame({
     }
   }
 
-  // Choose best direction for Ghost at tile intersection
-  const chooseGhostDirection = (ghost: Ghost, speed: number) => {
-    const p = pacmanRef.current
-    const isCentered = isAtCenterOfTile(ghost.x, ghost.y, speed * 0.5)
-
-    if (!isCentered) return
-
-    // Standard grid coordinates
+  // Choose a valid non-reversing direction for a ghost (targeted / random / trapped-reverse)
+  const pickGhostDirection = (ghost: Ghost) => {
     const curCol = Math.floor(ghost.x)
     const curRow = Math.floor(ghost.y)
+
+    const possibleDirs: Direction[] = [DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT].filter((d) => {
+      // Prevent 180 turn
+      if (d.x === -ghost.dir.x && d.y === -ghost.dir.y) return false
+      const nx = curCol + d.x
+      const ny = curRow + d.y
+      return isTileWalkable(ny, nx, true, ghost.state === "eaten")
+    })
+
+    if (possibleDirs.length === 0) {
+      // Allow reverse if trapped
+      ghost.dir = { x: -ghost.dir.x, y: -ghost.dir.y }
+      return
+    }
+
+    // If Frightened: random direction choice
+    if (ghost.state === "frightened") {
+      ghost.dir = possibleDirs[Math.floor(Math.random() * possibleDirs.length)]
+      return
+    }
+
+    // Otherwise: Calculate distance to target tile for each candidate direction
+    const target = getGhostTargetTile(ghost, pacmanRef.current)
+    let bestDir = possibleDirs[0]
+    let minDist = Infinity
+
+    for (const d of possibleDirs) {
+      const nextCol = curCol + d.x
+      const nextRow = curRow + d.y
+      const dist = Math.hypot(nextCol - target.x, nextRow - target.y)
+      if (dist < minDist) {
+        minDist = dist
+        bestDir = d
+      }
+    }
+
+    ghost.dir = bestDir
+  }
+
+  // Choose best direction for Ghost at tile intersection
+  const chooseGhostDirection = (ghost: Ghost, speed: number) => {
+    // Tolerance scales with speed so turns register reliably across speed variations
+    const isCentered = isAtCenterOfTile(ghost.x, ghost.y, speed * 1.5)
+
+    if (!isCentered) return
 
     // Ghost House Exit Logic
     if (ghost.state === "home") {
@@ -902,44 +956,7 @@ export default function PacmanGame({
       }
     }
 
-    // Available direction choices (Ghosts cannot reverse 180 deg unless state changes)
-    const possibleDirs: Direction[] = [DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT].filter((d) => {
-      // Prevent 180 turn
-      if (d.x === -ghost.dir.x && d.y === -ghost.dir.y) return false
-      const nx = curCol + d.x
-      const ny = curRow + d.y
-      return isTileWalkable(ny, nx, true, ghost.state === "eaten")
-    })
-
-    if (possibleDirs.length === 0) {
-      // Allow reverse if trapped
-      ghost.dir = { x: -ghost.dir.x, y: -ghost.dir.y }
-      return
-    }
-
-    // If Frightened: random direction choice
-    if (ghost.state === "frightened") {
-      const randDir = possibleDirs[Math.floor(Math.random() * possibleDirs.length)]
-      ghost.dir = randDir
-      return
-    }
-
-    // Otherwise: Calculate distance to target tile for each candidate direction
-    const target = getGhostTargetTile(ghost, p)
-    let bestDir = possibleDirs[0]
-    let minDist = Infinity
-
-    for (const d of possibleDirs) {
-      const nextCol = curCol + d.x
-      const nextRow = curRow + d.y
-      const dist = Math.hypot(nextCol - target.x, nextRow - target.y)
-      if (dist < minDist) {
-        minDist = dist
-        bestDir = d
-      }
-    }
-
-    ghost.dir = bestDir
+    pickGhostDirection(ghost)
   }
 
   // ----------------------------------------------------
@@ -991,7 +1008,7 @@ export default function PacmanGame({
       p.y += p.dir.y * pacmanBaseSpeed
 
       // Horizontal Warp Tunnel Wrap
-      if (Math.floor(p.y) === 14) {
+      if (Math.floor(p.y) === TUNNEL_ROW) {
         if (p.x < -0.5) p.x = GRID_COLS - 0.5
         else if (p.x >= GRID_COLS - 0.5) p.x = -0.5
       }
@@ -1020,7 +1037,7 @@ export default function PacmanGame({
         mazeRef.current[pRow][pCol] = 0
         dotsRemainingRef.current--
         dotsEatenSessionRef.current++
-        setScore((prev) => prev + 10)
+        addScore(10)
 
         munchToggleRef.current = !munchToggleRef.current
         audioSynth.playMunch(munchToggleRef.current)
@@ -1040,7 +1057,7 @@ export default function PacmanGame({
         mazeRef.current[pRow][pCol] = 0
         dotsRemainingRef.current--
         dotsEatenSessionRef.current++
-        setScore((prev) => prev + 50)
+        addScore(50)
         audioSynth.playPowerPellet()
 
         // Trigger Frightened State for active ghosts
@@ -1069,7 +1086,7 @@ export default function PacmanGame({
         // Check Pac-Man collision with Fruit (Tile 13.5, 17.5)
         if (Math.hypot(p.x - 13.5, p.y - 17.5) < 0.8) {
           const fruitPts = activeFruit.points
-          setScore((prev) => prev + fruitPts)
+          addScore(fruitPts)
           audioSynth.playFruitEat()
           spawnFloatingText(13.5 * tileSize, 17.5 * tileSize, `+${fruitPts}`, activeFruit.color)
           spawnParticles(13.5 * tileSize, 17.5 * tileSize, activeFruit.color, 16, 1.5)
@@ -1112,11 +1129,24 @@ export default function PacmanGame({
 
       chooseGhostDirection(ghost, currentSpeed)
 
+      // Validate the NEXT tile before advancing — if blocked (e.g. a missed turn at
+      // speed changes), snap to the nearest tile-center along the travel axis and
+      // re-decide a valid direction instead of phasing through walls
+      if (ghost.dir.x !== 0 || ghost.dir.y !== 0) {
+        const nextCol = Math.floor(ghost.x + ghost.dir.x * currentSpeed)
+        const nextRow = Math.floor(ghost.y + ghost.dir.y * currentSpeed)
+        if (!isTileWalkable(nextRow, nextCol, true, ghost.state === "eaten")) {
+          if (ghost.dir.x !== 0) ghost.y = Math.floor(ghost.y) + 0.5
+          if (ghost.dir.y !== 0) ghost.x = Math.floor(ghost.x) + 0.5
+          pickGhostDirection(ghost)
+        }
+      }
+
       ghost.x += ghost.dir.x * currentSpeed
       ghost.y += ghost.dir.y * currentSpeed
 
       // Horizontal Warp Tunnel Wrap
-      if (Math.floor(ghost.y) === 14) {
+      if (Math.floor(ghost.y) === TUNNEL_ROW) {
         if (ghost.x < -0.5) ghost.x = GRID_COLS - 0.5
         else if (ghost.x >= GRID_COLS - 0.5) ghost.x = -0.5
       }
@@ -1131,28 +1161,29 @@ export default function PacmanGame({
           ghost.state = "eaten"
           ghostsEatenSessionRef.current++
           const eatPoints = 200 * ghostCombo
-          setScore((prev) => prev + eatPoints)
+          addScore(eatPoints)
           setGhostCombo((prev) => prev * 2)
 
           audioSynth.playEatGhost()
           spawnFloatingText(ghost.x * tileSize, ghost.y * tileSize, `+${eatPoints}`, "#38bdf8")
           spawnParticles(ghost.x * tileSize, ghost.y * tileSize, ghost.color, 16, 1.5)
-        } else if (ghost.state === "normal") {
+        } else if (ghost.state === "normal" && livesRef.current > 0) {
           // Pac-Man Dies!
           audioSynth.playDeath()
           spawnParticles(p.x * tileSize, p.y * tileSize, theme.pacmanColor, 28, 2.0)
 
-          setLives((prevLives) => {
-            const nextLives = prevLives - 1
-            if (nextLives <= 0) {
-              // Game Over
-              setPhase("gameover")
-              saveStats(score, level, ghostsEatenSessionRef.current, dotsEatenSessionRef.current)
-            } else {
-              resetPositionsOnly()
-            }
-            return nextLives
-          })
+          // Life-loss handled outside any state updater so save/reset fire exactly once
+          const nextLives = livesRef.current - 1
+          livesRef.current = nextLives
+          setLives(nextLives)
+
+          if (nextLives <= 0) {
+            // Game Over
+            setPhase("gameover")
+            saveStats(scoreRef.current, level, ghostsEatenSessionRef.current, dotsEatenSessionRef.current)
+          } else {
+            resetPositionsOnly()
+          }
         }
       }
     })
@@ -1164,7 +1195,7 @@ export default function PacmanGame({
       audioSynth.playWin()
       const nextLvl = level + 1
       setLevel(nextLvl)
-      saveStats(score, nextLvl, ghostsEatenSessionRef.current, dotsEatenSessionRef.current)
+      saveStats(scoreRef.current, nextLvl, ghostsEatenSessionRef.current, dotsEatenSessionRef.current)
       initGameSession(false) // Advance level keeping score & lives
       return
     }
@@ -1378,7 +1409,7 @@ export default function PacmanGame({
     })
 
     animFrameId.current = requestAnimationFrame(gameLoop)
-  }, [activeFruit, activeTheme, createGhosts, difficulty, initGameSession, level, resetPositionsOnly, saveStats, score])
+  }, [activeFruit, activeTheme, createGhosts, difficulty, initGameSession, level, resetPositionsOnly, saveStats])
 
   // ----------------------------------------------------
   // EFFECT: RUN ANIMATION LOOP
@@ -1887,8 +1918,8 @@ export default function PacmanGame({
                 <div>
                   <h4 className="font-bold text-foreground mb-0.5">Warp Tunnels & Fruit Rewards</h4>
                   <p>
-                    Use the side Warp Tunnels on row 15 for instant escape! Catch bonus fruits (+100 to +5000 pts) that spawn
-                    below the ghost house.
+                    Use the side Warp Tunnels on the ghost-house corridor (grid row 15, 0-indexed 14) for
+                    instant escape! Catch bonus fruits (+100 to +5000 pts) that spawn below the ghost house.
                   </p>
                 </div>
               </div>

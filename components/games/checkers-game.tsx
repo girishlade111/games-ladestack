@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Play, RotateCcw } from "lucide-react"
 
@@ -12,49 +12,78 @@ function createBoard(): Board { const b: Board = []; for (let r = 0; r < 8; r++)
 
 function cloneBoard(b: Board): Board { return b.map(r => [...r]) }
 
-function getMoves(b: Board, r: number, c: number): Pos[] {
-  const piece = b[r][c]; if (!piece || piece === "black" || piece === "black-king") return []
-  const isKing = piece === "red-king"
+function getPieceMoves(b: Board, r: number, c: number): Pos[] {
+  const piece = b[r][c]; if (!piece) return []
+  const isRed = piece === "red" || piece === "red-king"
+  const isKing = piece === "red-king" || piece === "black-king"
+  const drs = isKing ? [-1, 1] : isRed ? [-1] : [1]
   const moves: Pos[] = []
-  const drs = isKing ? [-1, 1] : [-1]
   for (const dr of drs) {
     for (const dc of [-1, 1]) {
       const nr = r + dr; const nc = c + dc
       if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
         if (!b[nr][nc]) moves.push([nr, nc])
-        else if ((b[nr][nc] === "black" || b[nr][nc] === "black-king") && nr + dr >= 0 && nr + dr < 8 && nc + dc >= 0 && nc + dc < 8 && !b[nr + dr][nc + dc]) moves.push([nr + dr, nc + dc])
+        else {
+          const enemy = isRed ? (b[nr][nc] === "black" || b[nr][nc] === "black-king") : (b[nr][nc] === "red" || b[nr][nc] === "red-king")
+          if (enemy && nr + dr >= 0 && nr + dr < 8 && nc + dc >= 0 && nc + dc < 8 && !b[nr + dr][nc + dc]) moves.push([nr + dr, nc + dc])
+        }
       }
     }
   }
   return moves
 }
 
-function aiMove(b: Board): Board | null {
-  for (let r = 0; r < 8; r++) {
-    for (let c = 0; c < 8; c++) {
-      if (b[r][c] !== "black" && b[r][c] !== "black-king") continue
-      const isKing = b[r][c] === "black-king"
-      const drs = isKing ? [-1, 1] : [1]
-      for (const dr of drs) {
-        for (const dc of [-1, 1]) {
-          const nr = r + dr; const nc = c + dc
-          if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-            if (!b[nr][nc]) { const nb = cloneBoard(b); nb[r][c] = null; nb[nr][nc] = nr === 0 && nb[r][c] === "black" ? "black-king" : b[r][c]; return nb }
-          }
-          const jr = r + dr * 2; const jc = c + dc * 2
-          if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && jr >= 0 && jr < 8 && jc >= 0 && jc < 8 && !b[jr][jc] && (b[nr][nc] === "red" || b[nr][nc] === "red-king")) {
-            const nb = cloneBoard(b); nb[r][c] = null; nb[nr][nc] = null; nb[jr][jc] = jr === 0 && b[r][c] === "black" ? "black-king" : b[r][c]; return nb
-          }
-        }
-      }
-    }
-  }
+function hasAnyJump(b: Board, isRed: boolean): boolean {
   for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
-    if (b[r][c] !== "black" && b[r][c] !== "black-king") continue
-    const drs = b[r][c] === "black-king" ? [-1, 1] : [1]
-    for (const dr of drs) for (const dc of [-1, 1]) { const nr = r + dr; const nc = c + dc; if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && !b[nr][nc]) { const nb = cloneBoard(b); nb[r][c] = null; nb[nr][nc] = nr === 0 ? "black-king" : b[r][c]; return nb } }
+    const p = b[r][c]; if (!p) continue
+    if ((p === "red" || p === "red-king") !== isRed) continue
+    if (getPieceMoves(b, r, c).some(([mr, mc]) => Math.abs(mr - r) === 2)) return true
   }
-  return null
+  return false
+}
+
+function getMoves(b: Board, r: number, c: number): Pos[] {
+  const piece = b[r][c]; if (!piece) return []
+  // Forced capture: if any friendly piece can jump, only jumps are legal.
+  if (hasAnyJump(b, piece === "red" || piece === "red-king")) {
+    return getPieceMoves(b, r, c).filter(([mr, mc]) => Math.abs(mr - r) === 2)
+  }
+  return getPieceMoves(b, r, c)
+}
+
+function applyMove(b: Board, sr: number, sc: number, er: number, ec: number): Board {
+  const nb = cloneBoard(b)
+  let piece = nb[sr][sc]
+  nb[sr][sc] = null
+  if (Math.abs(er - sr) === 2) nb[(sr + er) / 2][(sc + ec) / 2] = null
+  // Red promotes at row 0; black moves downward and promotes at row 7.
+  if (piece === "red" && er === 0) piece = "red-king"
+  else if (piece === "black" && er === 7) piece = "black-king"
+  nb[er][ec] = piece
+  return nb
+}
+
+function aiMove(b: Board): Board | null {
+  let chosen: [Pos, Pos] | null = null
+  for (let r = 0; r < 8 && !chosen; r++) for (let c = 0; c < 8 && !chosen; c++) {
+    if (b[r][c] !== "black" && b[r][c] !== "black-king") continue
+    const mvs = getMoves(b, r, c)
+    if (mvs.length > 0) chosen = [[r, c], mvs[0]]
+  }
+  if (!chosen) return null
+
+  const [[sr, sc], [firstR, firstC]] = chosen
+  let cur = applyMove(b, sr, sc, firstR, firstC)
+  // Multi-jump: the landing piece keeps jumping while it has further jumps.
+  let lr = firstR; let lc = firstC
+  let jumps = getMoves(cur, lr, lc).filter(([mr, mc]) => Math.abs(mr - lr) === 2)
+  while (jumps.length > 0) {
+    const [nr, nc] = jumps[0]
+    cur = applyMove(cur, lr, lc, nr, nc)
+    lr = nr; lc = nc
+    jumps = getMoves(cur, lr, lc).filter(([mr, mc]) => Math.abs(mr - lr) === 2)
+  }
+  return cur
 }
 
 export default function CheckersGame({ themeColor = "#dc2626" }: { onBack?: () => void; themeColor?: string }) {
@@ -65,8 +94,17 @@ export default function CheckersGame({ themeColor = "#dc2626" }: { onBack?: () =
   const [turn, setTurn] = useState<"red" | "black">("red")
   const [message, setMessage] = useState("")
   const [score, setScore] = useState(0)
+  const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const startGame = useCallback(() => { setBoard(createBoard()); setSelected(null); setMoves([]); setTurn("red"); setMessage(""); setPhase("playing") }, [])
+  const startGame = useCallback(() => {
+    if (aiTimerRef.current !== null) { clearTimeout(aiTimerRef.current); aiTimerRef.current = null }
+    setBoard(createBoard()); setSelected(null); setMoves([]); setTurn("red"); setMessage(""); setPhase("playing")
+  }, [])
+
+  // Clear any pending AI move when the component unmounts.
+  useEffect(() => () => {
+    if (aiTimerRef.current !== null) clearTimeout(aiTimerRef.current)
+  }, [])
 
   const checkWin = (b: Board) => {
     let hasRed = false; let hasBlack = false
@@ -76,7 +114,10 @@ export default function CheckersGame({ themeColor = "#dc2626" }: { onBack?: () =
   }
 
   const doAiTurn = (b: Board) => {
-    setTimeout(() => { const nb = aiMove(b); if (nb) { setBoard(nb); setTurn("red"); checkWin(nb) } }, 400)
+    aiTimerRef.current = setTimeout(() => {
+      aiTimerRef.current = null
+      const nb = aiMove(b); if (nb) { setBoard(nb); setTurn("red"); checkWin(nb) }
+    }, 400)
   }
 
   const handleClick = (r: number, c: number) => {
@@ -86,11 +127,12 @@ export default function CheckersGame({ themeColor = "#dc2626" }: { onBack?: () =
       if (r === sr && c === sc) { setSelected(null); setMoves([]); return }
       const valid = moves.some(([mr, mc]) => mr === r && mc === c)
       if (valid) {
-        const nb = cloneBoard(board)
-        const isJump = Math.abs(r - sr) === 2
-        nb[sr][sc] = null
-        if (isJump) nb[(sr + r) / 2][(sc + c) / 2] = null
-        nb[r][c] = r === 0 ? "red-king" : board[sr][sc]
+        const nb = applyMove(board, sr, sc, r, c)
+        // Multi-jump: after a jump, the same piece must continue if it can jump again.
+        if (Math.abs(r - sr) === 2) {
+          const cont = getMoves(nb, r, c).filter(([mr, mc]) => Math.abs(mr - r) === 2)
+          if (cont.length > 0) { setBoard(nb); setSelected([r, c]); setMoves(cont); checkWin(nb); return }
+        }
         setBoard(nb); setSelected(null); setMoves([]); setTurn("black"); checkWin(nb); doAiTurn(nb)
       } else { setSelected(null); setMoves([]) }
     } else {

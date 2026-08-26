@@ -146,11 +146,13 @@ export default function PongGame({
   const keysRef = useRef<Record<string, boolean>>({})
   const mousePosRef = useRef<number>(CANVAS_HEIGHT / 2)
   const animFrameRef = useRef<number>(0)
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastTimeRef = useRef<number>(0)
   const screenShakeRef = useRef<number>(0)
   const rallyRef = useRef<number>(0)
   const maxRallyRef = useRef<number>(0)
   const maxSpeedRef = useRef<number>(INITIAL_BALL_SPEED)
+  const powerUpTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   // Load High Score on Mount
   useEffect(() => {
@@ -159,6 +161,13 @@ export default function PongGame({
       if (saved) setHighScore(parseInt(saved, 10))
     } catch {
       // Ignore localStorage errors
+    }
+  }, [])
+
+  // Clear countdown interval on unmount
+  useEffect(() => {
+    return () => {
+      if (countdownRef.current !== null) clearInterval(countdownRef.current)
     }
   }, [])
 
@@ -348,16 +357,21 @@ export default function PongGame({
       setCountdown(3)
       serveBall(serveTowardsP2)
 
+      // Clear any prior countdown so Reset during countdown can't stack intervals
+      if (countdownRef.current !== null) clearInterval(countdownRef.current)
+
       let timer = 3
       const interval = setInterval(() => {
         timer -= 1
         setCountdown(timer)
         if (timer <= 0) {
           clearInterval(interval)
+          countdownRef.current = null
           setGameState("playing")
           gameStateRef.current = "playing"
         }
       }, 700)
+      countdownRef.current = interval
     },
     [serveBall]
   )
@@ -402,10 +416,19 @@ export default function PongGame({
     const self = isP1 ? p1Ref.current : p2Ref.current
     const opponent = isP1 ? p2Ref.current : p1Ref.current
 
+    // Track & replace pending revert/clear timeouts so newer power-ups aren't cleared early
+    const scheduleRevert = (key: string, fn: () => void, delayMs: number) => {
+      const prev = powerUpTimeoutsRef.current[key]
+      if (prev) clearTimeout(prev)
+      powerUpTimeoutsRef.current[key] = setTimeout(() => {
+        delete powerUpTimeoutsRef.current[key]
+        fn()
+      }, delayMs)
+    }
+
     if (isP1) setP1ActivePowerUp(powerUpType.toUpperCase())
     else setP2ActivePowerUp(powerUpType.toUpperCase())
-
-    setTimeout(() => {
+    scheduleRevert(isP1 ? "banner_p1" : "banner_p2", () => {
       if (isP1) setP1ActivePowerUp(null)
       else setP2ActivePowerUp(null)
     }, 5000)
@@ -419,14 +442,14 @@ export default function PongGame({
       }
       case "expand": {
         self.height = BASE_PADDLE_HEIGHT * 1.45
-        setTimeout(() => {
+        scheduleRevert(`revert_expand_${player}`, () => {
           self.height = BASE_PADDLE_HEIGHT
         }, 7000)
         break
       }
       case "shrink": {
         opponent.height = BASE_PADDLE_HEIGHT * 0.65
-        setTimeout(() => {
+        scheduleRevert(`revert_shrink_${player}`, () => {
           opponent.height = BASE_PADDLE_HEIGHT
         }, 7000)
         break
@@ -939,12 +962,19 @@ export default function PongGame({
       keysRef.current[e.key] = false
     }
 
+    // Drop held keys on window blur so paddles don't drift after alt-tab
+    const onBlur = () => {
+      for (const k of Object.keys(keysRef.current)) delete keysRef.current[k]
+    }
+
     window.addEventListener("keydown", handleKeyDown)
     window.addEventListener("keyup", handleKeyUp)
+    window.addEventListener("blur", onBlur)
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
       window.removeEventListener("keyup", handleKeyUp)
+      window.removeEventListener("blur", onBlur)
     }
   }, [])
 
@@ -1042,7 +1072,7 @@ export default function PongGame({
             height={CANVAS_HEIGHT}
             onMouseMove={handleMouseMove}
             onTouchMove={handleTouchMove}
-            className="w-full h-auto aspect-[16/10] block rounded-lg cursor-crosshair border border-slate-800/80"
+            className="w-full h-auto aspect-[16/10] block touch-none rounded-lg cursor-crosshair border border-slate-800/80"
           />
 
           {/* MENU OVERLAY */}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ArrowLeft, Play, RotateCcw, Check, X, Timer, Trophy } from "lucide-react"
@@ -58,9 +58,33 @@ export default function TriviaQuizGame({ themeColor = "#f43f5e" }: { onBack?: ()
   const [timeLeft, setTimeLeft] = useState(TIME_PER_QUESTION)
   const [streak, setStreak] = useState(0)
   const [bestScore, setBestScore] = useState(0)
+  const advanceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Load persisted best score on mount (storage may be unavailable).
+  useEffect(() => {
+    try {
+      const saved = parseInt(localStorage.getItem("trivia-best") || "0", 10)
+      if (!Number.isNaN(saved)) setBestScore(saved)
+    } catch {
+      // Storage unavailable; start with 0.
+    }
+    return () => {
+      if (advanceTimeoutRef.current !== null) clearTimeout(advanceTimeoutRef.current)
+    }
+  }, [])
+
+  const shuffle = useCallback(<T,>(arr: T[]): T[] => {
+    const out = [...arr]
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[out[i], out[j]] = [out[j], out[i]]
+    }
+    return out
+  }, [])
 
   const startGame = useCallback(() => {
-    const shuffled = [...QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 10)
+    if (advanceTimeoutRef.current !== null) clearTimeout(advanceTimeoutRef.current)
+    const shuffled = shuffle(QUESTIONS).slice(0, 10)
     setQuestions(shuffled)
     setCurrentQuestion(0)
     setScore(0)
@@ -69,7 +93,7 @@ export default function TriviaQuizGame({ themeColor = "#f43f5e" }: { onBack?: ()
     setTimeLeft(TIME_PER_QUESTION)
     setStreak(0)
     setPhase("playing")
-  }, [])
+  }, [shuffle])
 
   const handleAnswer = (optionIndex: number) => {
     if (selectedAnswer !== null) return
@@ -85,29 +109,48 @@ export default function TriviaQuizGame({ themeColor = "#f43f5e" }: { onBack?: ()
     }
     setAnswers((a) => [...a, { correct, timeLeft }])
 
-    setTimeout(() => {
+    if (advanceTimeoutRef.current !== null) clearTimeout(advanceTimeoutRef.current)
+    advanceTimeoutRef.current = setTimeout(() => {
+      advanceTimeoutRef.current = null
       if (currentQuestion < questions.length - 1) {
         setCurrentQuestion((c) => c + 1)
         setSelectedAnswer(null)
         setTimeLeft(TIME_PER_QUESTION)
       } else {
         const finalScore = score + points
-        const best = parseInt(localStorage.getItem("trivia-best") || "0")
-        if (finalScore > best) {
-          localStorage.setItem("trivia-best", finalScore.toString())
-          setBestScore(finalScore)
-        } else {
-          setBestScore(best)
+        try {
+          const best = parseInt(localStorage.getItem("trivia-best") || "0", 10)
+          if (finalScore > best) {
+            localStorage.setItem("trivia-best", finalScore.toString())
+            setBestScore(finalScore)
+          } else {
+            setBestScore(best)
+          }
+        } catch {
+          // Storage unavailable; still show the round result.
+          setBestScore(finalScore > bestScore ? finalScore : bestScore)
         }
         setPhase("finished")
       }
     }, 1500)
   }
 
-  const handleTimeout = useCallback(() => {
-    if (selectedAnswer !== null) return
-    handleAnswer(-1)
-  }, [selectedAnswer, currentQuestion, questions])
+  // Countdown: tick once per second while a question is unanswered.
+  useEffect(() => {
+    if (phase !== "playing" || selectedAnswer !== null) return
+    const interval = setInterval(() => {
+      setTimeLeft((t) => Math.max(0, t - 1))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [phase, selectedAnswer, currentQuestion])
+
+  // Register a timeout (no answer picked) when the clock hits zero.
+  useEffect(() => {
+    if (phase === "playing" && selectedAnswer === null && timeLeft === 0) {
+      handleAnswer(-1)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft, phase, selectedAnswer, currentQuestion])
 
   const getGrade = (s: number) => {
     const max = questions.length * 110

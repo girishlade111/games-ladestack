@@ -524,6 +524,11 @@ export default function SnakeGame({
     floatingTextsRef.current = []
     startTimeRef.current = Date.now()
 
+    if (comboResetTimerRef.current) {
+      clearTimeout(comboResetTimerRef.current)
+      comboResetTimerRef.current = null
+    }
+
     // Configure Obstacles based on mode & difficulty
     if (gameMode === "maze" || DIFFICULTY_CONFIG[difficulty].hasObstacles) {
       obstaclesRef.current = [...MAZE_OBSTACLES]
@@ -547,6 +552,13 @@ export default function SnakeGame({
     setGameOver(false)
     lastMoveRef.current = 0
   }, [difficulty, gameMode, generateFood])
+
+  // Clear pending combo reset timer on unmount
+  useEffect(() => {
+    return () => {
+      if (comboResetTimerRef.current) clearTimeout(comboResetTimerRef.current)
+    }
+  }, [])
 
   // Trigger Game Over
   const handleGameOver = useCallback(() => {
@@ -620,8 +632,10 @@ export default function SnakeGame({
         return
       }
 
-      // Check Self Collision
-      const hitSelf = snake.some((s) => s.x === head.x && s.y === head.y)
+      // Check Self Collision (exclude tail when it vacates this move — i.e. no food eaten)
+      const willEatFood = foodsRef.current.some((f) => f.x === head.x && f.y === head.y)
+      const collisionBody = willEatFood ? snake : snake.slice(0, snake.length - 1)
+      const hitSelf = collisionBody.some((s) => s.x === head.x && s.y === head.y)
       if (hitSelf && !hasGhost) {
         handleGameOver()
         return
@@ -730,7 +744,8 @@ export default function SnakeGame({
 
       // Update Food Expiration Timers
       if (gameRunningRef.current && !isPausedRef.current && !gameOverRef.current) {
-        foodsRef.current.forEach((food, idx) => {
+        for (let idx = foodsRef.current.length - 1; idx >= 0; idx--) {
+          const food = foodsRef.current[idx]
           if (food.timer !== undefined) {
             food.timer -= 16.6
             if (food.timer <= 0) {
@@ -741,7 +756,7 @@ export default function SnakeGame({
               }
             }
           }
-        })
+        }
 
         // Update Active Buff Effects
         if (activeEffectsRef.current.length > 0) {
@@ -761,17 +776,17 @@ export default function SnakeGame({
   useEffect(() => {
     if (gameMode !== "speedrun" || !gameRunning || isPaused || gameOver) return
     const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval)
-          handleGameOver()
-          return 0
-        }
-        return prev - 1
-      })
+      setTimeLeft((prev) => Math.max(0, prev - 1))
     }, 1000)
     return () => clearInterval(interval)
-  }, [gameMode, gameRunning, isPaused, gameOver, handleGameOver])
+  }, [gameMode, gameRunning, isPaused, gameOver])
+
+  // End the run once the clock hits zero (side effects kept out of the state updater)
+  useEffect(() => {
+    if (gameMode === "speedrun" && gameRunning && timeLeft <= 0 && !gameOver) {
+      handleGameOver()
+    }
+  }, [gameMode, gameRunning, timeLeft, gameOver, handleGameOver])
 
   // Attach RAF loop
   useEffect(() => {
@@ -947,7 +962,8 @@ export default function SnakeGame({
       })
 
       // Update and Draw Particles
-      particlesRef.current.forEach((p, idx) => {
+      for (let idx = particlesRef.current.length - 1; idx >= 0; idx--) {
+        const p = particlesRef.current[idx]
         p.x += p.vx
         p.y += p.vy
         p.life += 1
@@ -964,10 +980,11 @@ export default function SnakeGame({
           ctx.fill()
           ctx.restore()
         }
-      })
+      }
 
       // Update and Draw Floating Texts
-      floatingTextsRef.current.forEach((t, idx) => {
+      for (let idx = floatingTextsRef.current.length - 1; idx >= 0; idx--) {
+        const t = floatingTextsRef.current[idx]
         t.y += t.vy
         t.life += 1
         t.alpha = 1.0 - t.life / 35
@@ -983,7 +1000,7 @@ export default function SnakeGame({
           ctx.fillText(t.text, t.x, t.y)
           ctx.restore()
         }
-      })
+      }
 
       renderFrameId = requestAnimationFrame(draw)
     }
@@ -1025,27 +1042,30 @@ export default function SnakeGame({
         case "ArrowUp":
         case "w":
         case "W":
+          e.preventDefault() // block page scroll even when reversal is rejected
           if (currDir.y !== 1) newDir = { x: 0, y: -1 }
           break
         case "ArrowDown":
         case "s":
         case "S":
+          e.preventDefault()
           if (currDir.y !== -1) newDir = { x: 0, y: 1 }
           break
         case "ArrowLeft":
         case "a":
         case "A":
+          e.preventDefault()
           if (currDir.x !== 1) newDir = { x: -1, y: 0 }
           break
         case "ArrowRight":
         case "d":
         case "D":
+          e.preventDefault()
           if (currDir.x !== -1) newDir = { x: 1, y: 0 }
           break
       }
 
       if (newDir) {
-        e.preventDefault()
         nextDirRef.current = newDir
         synth.playTurn(isMuted)
       }

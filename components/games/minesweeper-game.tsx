@@ -259,6 +259,8 @@ export default function MinesweeperGame({ onBack, themeColor = "#0f172a" }: Mine
   // Long press tracking for mobile right-click/flagging
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
   const isLongPressRef = useRef(false)
+  // Pending hint highlight timeout (cleared on reset so it can't mutate a fresh board)
+  const hintTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Load saved stats and preferences
   useEffect(() => {
@@ -336,6 +338,11 @@ export default function MinesweeperGame({ onBack, themeColor = "#0f172a" }: Mine
     setGameStatus("ready")
     setFaceState("happy")
     setHintsAvailable(3)
+    // Cancel any pending hint highlight from a previous game
+    if (hintTimeoutRef.current) {
+      clearTimeout(hintTimeoutRef.current)
+      hintTimeoutRef.current = null
+    }
   }, [getConfig])
 
   // Initial load blank board setup
@@ -351,9 +358,35 @@ export default function MinesweeperGame({ onBack, themeColor = "#0f172a" }: Mine
     setShowEndModal(false)
     playSound("click", isMuted)
 
+    // Sanitize custom inputs (NaN-safe, clamped to config bounds) so the blank board,
+    // getConfig(), and the displayed grid all share identical dimensions
+    let customDims: { rows: number; cols: number } | null = null
+    if (newDiff === "custom") {
+      const rawRows = Number.isFinite(customRows) ? Math.trunc(customRows) : 16
+      const rawCols = Number.isFinite(customCols) ? Math.trunc(customCols) : 16
+      const rawMines = Number.isFinite(customMines) ? Math.trunc(customMines) : 40
+      const rows = Math.min(24, Math.max(8, rawRows))
+      const cols = Math.min(30, Math.max(8, rawCols))
+      const mines = Math.min(rows * cols - 10, Math.max(1, rawMines))
+      setCustomRows(rows)
+      setCustomCols(cols)
+      setCustomMines(mines)
+      customDims = { rows, cols }
+    }
+
+    if (hintTimeoutRef.current) {
+      clearTimeout(hintTimeoutRef.current)
+      hintTimeoutRef.current = null
+    }
+
     // Setup board
     setTimeout(() => {
-      const { rows, cols } = selectedDifficulty ? (selectedDifficulty === "custom" ? { rows: customRows, cols: customCols } : DIFFICULTY_SETTINGS[selectedDifficulty]) : getConfig()
+      const { rows, cols } =
+        selectedDifficulty === "custom" && customDims
+          ? customDims
+          : selectedDifficulty
+          ? DIFFICULTY_SETTINGS[selectedDifficulty]
+          : getConfig()
       const blank: Cell[][] = Array(rows)
         .fill(null)
         .map((_, r) =>
@@ -720,6 +753,13 @@ export default function MinesweeperGame({ onBack, themeColor = "#0f172a" }: Mine
   }
 
   // Touch start for long press flagging on mobile
+  const cancelLongPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }
+
   const handleTouchStart = (r: number, c: number) => {
     isLongPressRef.current = false
     longPressTimerRef.current = setTimeout(() => {
@@ -729,9 +769,13 @@ export default function MinesweeperGame({ onBack, themeColor = "#0f172a" }: Mine
   }
 
   const handleTouchEnd = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current)
-    }
+    cancelLongPress()
+  }
+
+  // Cancel pending long-press when the finger moves (scroll) or the touch is interrupted
+  const handleTouchCancel = () => {
+    cancelLongPress()
+    isLongPressRef.current = false
   }
 
   // Smart Hint Generator Logic
@@ -791,12 +835,14 @@ export default function MinesweeperGame({ onBack, themeColor = "#0f172a" }: Mine
       )
       setBoard(newBoard)
 
-      setTimeout(() => {
+      if (hintTimeoutRef.current) clearTimeout(hintTimeoutRef.current)
+      hintTimeoutRef.current = setTimeout(() => {
         setBoard((prev) =>
           prev.map((row) =>
             row.map((c) => (c.row === hr && c.col === hc ? { ...c, isHinted: false } : c))
           )
         )
+        hintTimeoutRef.current = null
       }, 2500)
     }
   }
@@ -1084,6 +1130,8 @@ export default function MinesweeperGame({ onBack, themeColor = "#0f172a" }: Mine
                       onContextMenu={(e) => handleToggleFlag(r, c, e)}
                       onTouchStart={() => handleTouchStart(r, c)}
                       onTouchEnd={handleTouchEnd}
+                      onTouchMove={handleTouchCancel}
+                      onTouchCancel={handleTouchCancel}
                       className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-xs sm:text-sm font-bold cursor-pointer transition-all select-none ${
                         isExploded
                           ? styles.mineExploded

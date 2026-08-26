@@ -208,6 +208,9 @@ export default function BreakoutGame({
   const animFrameRef = useRef<number>(0)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const gsRef = useRef<GameState>("menu")
+  const activePowerUpsRef = useRef<string>("")
+  const pendingLevelClearRef = useRef(false)
+  const highScoreRef = useRef(0)
 
   // Mutable Game Loop State
   const gs = useRef({
@@ -248,10 +251,26 @@ export default function BreakoutGame({
   useEffect(() => {
     try {
       const saved = localStorage.getItem("breakout_high_score")
-      if (saved) setHighScore(parseInt(saved, 10))
+      if (saved) {
+        const loaded = parseInt(saved, 10)
+        highScoreRef.current = loaded
+        setHighScore(loaded)
+      }
     } catch {
       // ignore
     }
+  }, [])
+
+  // Persist High Score (hoisted out of state updaters to avoid StrictMode double-writes)
+  const saveHighScore = useCallback(() => {
+    const newHigh = Math.max(highScoreRef.current, gs.current.score)
+    highScoreRef.current = newHigh
+    try {
+      localStorage.setItem("breakout_high_score", newHigh.toString())
+    } catch {
+      // ignore
+    }
+    setHighScore(newHigh)
   }, [])
 
   // Web Audio Synth Helper
@@ -612,6 +631,7 @@ export default function BreakoutGame({
       setLives(cfg.lives)
       setLevel(startLevel)
       setCombo(0)
+      activePowerUpsRef.current = ""
       setActivePowerUps([])
     },
     [difficulty, generateBricks]
@@ -622,6 +642,13 @@ export default function BreakoutGame({
     setGameState("playing")
     gsRef.current = "playing"
   }, [initGame])
+
+  // Shared by P key, pause button and resume overlay
+  const togglePause = useCallback(() => {
+    if (gsRef.current !== "playing") return
+    gs.current.isPaused = !gs.current.isPaused
+    setGameState(gs.current.isPaused ? "paused" : "playing")
+  }, [])
 
   const launchStuckBalls = useCallback(() => {
     const cfg = DIFFICULTY_SETTINGS[difficulty]
@@ -706,6 +733,15 @@ export default function BreakoutGame({
   // Main Physics & Update Loop
   const updateGame = useCallback(() => {
     if (gsRef.current !== "playing" || gs.current.isPaused) return
+
+    // Deferred level transition (avoids re-initializing state mid-frame)
+    if (pendingLevelClearRef.current) {
+      pendingLevelClearRef.current = false
+      const nextLvl = gs.current.level + 1
+      initGame(nextLvl, gs.current.score + 500)
+      createFloatingText(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, `STAGE ${nextLvl} CLEAR! +500 PTS`, "#10b981")
+      return
+    }
 
     const { paddle, balls, bricks, powerDrops, bullets, particles, floatingTexts, keys } = gs.current
     const cfg = DIFFICULTY_SETTINGS[difficulty]
@@ -941,13 +977,7 @@ export default function BreakoutGame({
         gsRef.current = "gameover"
         setGameState("gameover")
         playSound("gameover")
-        setHighScore((prev) => {
-          const newHigh = Math.max(prev, gs.current.score)
-          try {
-            localStorage.setItem("breakout_high_score", newHigh.toString())
-          } catch {}
-          return newHigh
-        })
+        saveHighScore()
         return
       } else {
         // Respawn single ball
@@ -1067,30 +1097,26 @@ export default function BreakoutGame({
     if (gs.current.slowTimer > 0) activeList.push("⏳ SLOW-MO")
     if (balls.some((b) => b.isFireball)) activeList.push("🔥 FIREBALL")
 
-    setActivePowerUps(activeList)
+    // Only re-render when contents actually changed (avoids per-frame setState)
+    const activeListJson = JSON.stringify(activeList)
+    if (activeListJson !== activePowerUpsRef.current) {
+      activePowerUpsRef.current = activeListJson
+      setActivePowerUps(activeList)
+    }
 
     // Check Level Clear Condition (all non-metal bricks destroyed)
     const remainingBreakable = bricks.filter((b) => b.visible && b.type !== "metal")
     if (remainingBreakable.length === 0) {
       if (gs.current.level < MAX_LEVELS) {
-        playSound("win")
-        const nextLvl = gs.current.level + 1
-        initGame(nextLvl, gs.current.score + 500)
-        createFloatingText(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, `STAGE ${nextLvl} CLEAR! +500 PTS`, "#10b981")
+        pendingLevelClearRef.current = true
       } else {
         gsRef.current = "victory"
         setGameState("victory")
         playSound("win")
-        setHighScore((prev) => {
-          const newHigh = Math.max(prev, gs.current.score)
-          try {
-            localStorage.setItem("breakout_high_score", newHigh.toString())
-          } catch {}
-          return newHigh
-        })
+        saveHighScore()
       }
     }
-  }, [difficulty, initGame, playSound])
+  }, [difficulty, initGame, playSound, saveHighScore])
 
   // Canvas Render Loop
   const render = useCallback(() => {
@@ -1325,8 +1351,7 @@ export default function BreakoutGame({
       if (gsRef.current === "playing") {
         if (e.key === "p" || e.key === "P") {
           e.preventDefault()
-          gs.current.isPaused = !gs.current.isPaused
-          setGameState(gs.current.isPaused ? "paused" : "playing")
+          togglePause()
         } else if (e.key === " ") {
           e.preventDefault()
           launchStuckBalls()
@@ -1339,13 +1364,20 @@ export default function BreakoutGame({
       gs.current.keys.delete(e.key.toLowerCase())
     }
 
+    // Release held keys when window loses focus (prevents stuck paddle)
+    const handleBlur = () => {
+      gs.current.keys.clear()
+    }
+
     window.addEventListener("keydown", handleKeyDown)
     window.addEventListener("keyup", handleKeyUp)
+    window.addEventListener("blur", handleBlur)
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
       window.removeEventListener("keyup", handleKeyUp)
+      window.removeEventListener("blur", handleBlur)
     }
-  }, [launchStuckBalls, fireLasers])
+  }, [launchStuckBalls, fireLasers, togglePause])
 
   // Mouse Move Paddle Tracking & Click Launch/Fire
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1498,6 +1530,24 @@ export default function BreakoutGame({
           className={`block ${controlType === "mouse" ? "cursor-none" : "cursor-default"}`}
           style={{ maxWidth: "100%", height: "auto" }}
         />
+
+        {/* PAUSED OVERLAY (DOM, so it stays visible while the rAF loop is cancelled) */}
+        {gameState === "paused" && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/80 backdrop-blur-md">
+            <Card className="bg-slate-900/90 border-slate-800 text-slate-100 px-8 py-6 text-center shadow-2xl">
+              <Pause className="w-10 h-10 mx-auto mb-2 text-purple-400" />
+              <h2 className="text-2xl font-bold text-white mb-4">PAUSED</h2>
+              <p className="text-xs text-slate-400 mb-5">Press P to resume</p>
+              <Button
+                onClick={togglePause}
+                style={{ backgroundColor: themeColor }}
+                className="px-6 py-3 text-white font-bold hover:opacity-90"
+              >
+                <Play className="w-4 h-4 mr-2 fill-current" /> RESUME
+              </Button>
+            </Card>
+          </div>
+        )}
 
         {/* MENU OVERLAY */}
         {gameState === "menu" && (
@@ -1664,16 +1714,26 @@ export default function BreakoutGame({
               <span>Press <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 border border-slate-700">Space</kbd> / <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 border border-slate-700">Click</kbd> Fire</span>
             </div>
 
-            <Button
-              onClick={() => {
-                launchStuckBalls()
-                fireLasers()
-              }}
-              size="sm"
-              className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs px-4"
-            >
-              <Zap className="w-3.5 h-3.5 mr-1" /> FIRE / LAUNCH
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={togglePause}
+                variant="outline"
+                size="sm"
+                className="border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 font-bold text-xs px-3 gap-1.5"
+              >
+                <Pause className="w-3.5 h-3.5" /> PAUSE
+              </Button>
+              <Button
+                onClick={() => {
+                  launchStuckBalls()
+                  fireLasers()
+                }}
+                size="sm"
+                className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs px-4"
+              >
+                <Zap className="w-3.5 h-3.5 mr-1" /> FIRE / LAUNCH
+              </Button>
+            </div>
           </div>
         )}
       </div>

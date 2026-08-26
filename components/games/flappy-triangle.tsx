@@ -246,6 +246,9 @@ export default function FlappyTriangle({
     shrinkTimer: 0
   })
 
+  // Last-pushed effects snapshot so the loop skips redundant state updates
+  const prevEffectsRef = useRef({ shield: false, slowmoTimer: 0, shrinkTimer: 0 })
+
   // Refs for smooth 60fps Game Loop
   const gsRef = useRef<"menu" | "playing" | "paused" | "gameOver">("menu")
   const diffRef = useRef<Difficulty>("normal")
@@ -259,8 +262,8 @@ export default function FlappyTriangle({
     rotation: 0,
     scale: 1,
     shield: false,
-    slowmoTimer: 0, // frame countdown
-    shrinkTimer: 0 // frame countdown
+    slowmoTimer: 0, // ms countdown
+    shrinkTimer: 0 // ms countdown
   })
 
   const obstaclesRef = useRef<Obstacle[]>([])
@@ -277,6 +280,7 @@ export default function FlappyTriangle({
     flightTime: 0
   })
   const animFrameRef = useRef(0)
+  const lastFrameTsRef = useRef(0)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const starfieldRef = useRef<{ x: number; y: number; size: number; speed: number; alpha: number }[]>([])
 
@@ -570,8 +574,7 @@ export default function FlappyTriangle({
       return
     }
     if (state === "paused") {
-      setGameState("playing")
-      gsRef.current = "playing"
+      // Input ignored while paused — the pause overlay provides Resume/Restart actions
       return
     }
 
@@ -624,32 +627,40 @@ export default function FlappyTriangle({
 
   // Main 60 FPS Physics Loop
   const gameLoop = useCallback(() => {
+    const perfNow = performance.now()
+    // Real delta time between frames (clamped); stamped every frame so resume never spikes
+    const dtMs = Math.min(50, perfNow - lastFrameTsRef.current)
+    lastFrameTsRef.current = perfNow
+
     if (gsRef.current === "playing") {
       const t = triangleRef.current
       const config = DIFFICULTIES[diffRef.current]
       const themeObj = THEMES[themeRef.current]
 
-      // Timers & Slow-mo Calculation
+      // Timers & Slow-mo Calculation — real-time decay instead of fixed frame counts
       let currentSpeed = config.speed
       if (t.slowmoTimer > 0) {
-        t.slowmoTimer--
+        t.slowmoTimer -= dtMs
         currentSpeed *= 0.6
       }
 
       if (t.shrinkTimer > 0) {
-        t.shrinkTimer--
+        t.shrinkTimer -= dtMs
         t.scale = 0.65
       } else {
         t.scale = 1.0
       }
 
-      // Update UI active effects timer state periodically
-      if (Math.random() < 0.2) {
-        setActiveEffects({
-          shield: t.shield,
-          slowmoTimer: Math.round((t.slowmoTimer / 360) * 100),
-          shrinkTimer: Math.round((t.shrinkTimer / 420) * 100)
-        })
+      // Push effects to UI state only when the displayed values actually change
+      const fx = {
+        shield: t.shield,
+        slowmoTimer: Math.round((t.slowmoTimer / 6000) * 100),
+        shrinkTimer: Math.round((t.shrinkTimer / 7000) * 100)
+      }
+      const prevFx = prevEffectsRef.current
+      if (fx.shield !== prevFx.shield || fx.slowmoTimer !== prevFx.slowmoTimer || fx.shrinkTimer !== prevFx.shrinkTimer) {
+        prevEffectsRef.current = fx
+        setActiveEffects(fx)
       }
 
       // Gravity & Flight Mechanics
@@ -720,11 +731,11 @@ export default function FlappyTriangle({
               playSound("powerup")
               addFloatingText(t.x, t.y - 30, "SHIELD ACTIVE!", "#38bdf8")
             } else if (p.type === "slowmo") {
-              t.slowmoTimer = 360 // ~6 seconds
+              t.slowmoTimer = 6000 // ~6 seconds
               playSound("powerup")
               addFloatingText(t.x, t.y - 30, "SLOW-MO!", "#a855f7")
             } else if (p.type === "shrink") {
-              t.shrinkTimer = 420 // ~7 seconds
+              t.shrinkTimer = 7000 // ~7 seconds
               playSound("powerup")
               addFloatingText(t.x, t.y - 30, "MINI TRIANGLE!", "#f43f5e")
             } else if (p.type === "gem") {

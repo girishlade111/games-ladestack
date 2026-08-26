@@ -33,9 +33,12 @@ export default function RhythmTapGame({ themeColor = "#a21caf" }: { onBack?: () 
   const [misses, setMisses] = useState(0)
 
   const engine = useRef({ notes: [] as Note[], nextId: 0, spawn: 0, speed: 3.2, elapsed: 0, running: false })
+  // Mirrors combo so scoring stays exact without nesting state updates
+  const comboRef = useRef(0)
 
   const start = useCallback(() => {
     engine.current = { notes: [], nextId: 0, spawn: 0, speed: 3.2, elapsed: 0, running: true }
+    comboRef.current = 0
     setNotes([])
     setScore(0)
     setCombo(0)
@@ -48,33 +51,34 @@ export default function RhythmTapGame({ themeColor = "#a21caf" }: { onBack?: () 
   useEffect(() => {
     if (phase !== "playing") return
     let raf = 0
-    const loop = () => {
+    let last: number | null = null
+    const loop = (now: number) => {
+      // Delta-time physics: capped so tab-background pauses don't teleport notes.
+      // All cadences are expressed per 60fps-equivalent so gameplay is
+      // refresh-rate independent (identical feel at 60Hz, correct at 144Hz+).
+      const dt = last === null ? 0 : Math.min((now - last) / 1000, 0.05)
+      last = now
+
       const e = engine.current
       if (e.running) {
-        e.elapsed += 1
-        e.speed = Math.min(7, 3.2 + e.elapsed / 900)
+        e.elapsed += dt * 1000 // ms; formulas below divide back to frame equivalents
+        e.speed = Math.min(7, 3.2 + e.elapsed / 15000)
 
-        e.spawn -= 1
+        e.spawn -= dt * 60
         if (e.spawn <= 0) {
           e.notes.push({ id: e.nextId++, lane: Math.floor(Math.random() * LANES), y: -NOTE_H, hit: false })
-          e.spawn = Math.max(22, 46 - e.elapsed / 120)
+          e.spawn = Math.max(22, 46 - e.elapsed / 200)
         }
 
-        e.notes.forEach((n) => (n.y += e.speed))
+        e.notes.forEach((n) => (n.y += e.speed * dt * 60))
 
         // Notes that slip past the hit line break the combo.
         const escaped = e.notes.filter((n) => !n.hit && n.y > HIT_Y + GOOD)
         if (escaped.length) {
           setCombo(0)
+          comboRef.current = 0
           setJudgement("Miss")
-          setMisses((m) => {
-            const next = m + escaped.length
-            if (next >= 15) {
-              e.running = false
-              setPhase("over")
-            }
-            return next
-          })
+          setMisses((m) => m + escaped.length)
         }
 
         e.notes = e.notes.filter((n) => !n.hit && n.y <= HIT_Y + GOOD)
@@ -85,6 +89,14 @@ export default function RhythmTapGame({ themeColor = "#a21caf" }: { onBack?: () 
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
   }, [phase])
+
+  // Game-over transitions triggered from effects, never inside state updaters
+  useEffect(() => {
+    if (phase === "playing" && misses >= 15) {
+      engine.current.running = false
+      setPhase("over")
+    }
+  }, [phase, misses])
 
   useEffect(() => {
     if (phase === "over") {
@@ -113,6 +125,7 @@ export default function RhythmTapGame({ themeColor = "#a21caf" }: { onBack?: () 
 
       if (!target || bestDist > GOOD) {
         setCombo(0)
+        comboRef.current = 0
         setJudgement("Miss")
         return
       }
@@ -123,12 +136,11 @@ export default function RhythmTapGame({ themeColor = "#a21caf" }: { onBack?: () 
 
       const perfect = bestDist <= PERFECT
       setJudgement(perfect ? "Perfect!" : "Good")
-      setCombo((c) => {
-        const nc = c + 1
-        setMaxCombo((m) => Math.max(m, nc))
-        setScore((s) => s + (perfect ? 100 : 50) + Math.min(nc, 20) * 2)
-        return nc
-      })
+      const nc = comboRef.current + 1
+      comboRef.current = nc
+      setCombo(nc)
+      setMaxCombo((m) => Math.max(m, nc))
+      setScore((s) => s + (perfect ? 100 : 50) + Math.min(nc, 20) * 2)
     },
     [phase]
   )

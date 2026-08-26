@@ -109,6 +109,9 @@ interface Particle {
 interface GameStateSnapshot {
   board: (Tile | null)[][]
   score: number
+  moveCount: number
+  combo: number
+  timeLeft: number
 }
 
 export default function Puzzle2048Game({ onBack, themeColor = "#f59e0b" }: Puzzle2048GameProps) {
@@ -448,249 +451,261 @@ export default function Puzzle2048Game({ onBack, themeColor = "#f59e0b" }: Puzzl
   }
 
   // Core Slide & Merge Move Logic
+  // Pure compute from current board, then commit each state update exactly once
+  // (side effects live outside setState so StrictMode double-invocation can't duplicate them)
   const handleMove = useCallback((direction: "up" | "down" | "left" | "right") => {
     if (gameOver || (gameWon && !keepPlaying) || isHammerActive || isUpgradeActive) return
 
-    setBoard((prevBoard) => {
-      const size = gridSize
-      let moved = false
-      let scoreGained = 0
-      let maxMergedVal = 0
-      let mergeCount = 0
+    const size = gridSize
+    let moved = false
+    let scoreGained = 0
+    let maxMergedVal = 0
+    let mergeCount = 0
 
-      // Deep copy board matrix
-      const newBoard: (Tile | null)[][] = prevBoard.map((row) =>
-        row.map((cell) => (cell ? { ...cell, isNew: false, isMerged: false } : null))
-      )
+    // Deep copy board matrix
+    const newBoard: (Tile | null)[][] = board.map((row) =>
+      row.map((cell) => (cell ? { ...cell, isNew: false, isMerged: false } : null))
+    )
 
-      // Save History snapshot for Undo
-      const snapshot: GameStateSnapshot = {
-        board: prevBoard.map((row) => row.map((cell) => (cell ? { ...cell } : null))),
-        score
-      }
+    // Save History snapshot for Undo
+    const snapshot: GameStateSnapshot = {
+      board: board.map((row) => row.map((cell) => (cell ? { ...cell } : null))),
+      score,
+      moveCount,
+      combo,
+      timeLeft
+    }
 
-      // Helper function to slide line
-      const slideLine = (line: (Tile | null)[]): { newLine: (Tile | null)[]; lineMoved: boolean } => {
-        let lineMoved = false
-        const filtered = line.filter((t) => t !== null) as Tile[]
-        const newLine: (Tile | null)[] = Array(size).fill(null)
-        let targetIdx = 0
+    // Helper function to slide line
+    const slideLine = (line: (Tile | null)[]): { newLine: (Tile | null)[]; lineMoved: boolean } => {
+      let lineMoved = false
+      const filtered = line.filter((t) => t !== null) as Tile[]
+      const newLine: (Tile | null)[] = Array(size).fill(null)
+      let targetIdx = 0
 
-        for (let i = 0; i < filtered.length; i++) {
-          const current = filtered[i]
+      for (let i = 0; i < filtered.length; i++) {
+        const current = filtered[i]
 
-          // If current is an obstacle block, place it at current index directly without merging
-          if (current.isObstacle) {
-            while (targetIdx < size && newLine[targetIdx] !== null) {
-              targetIdx++
-            }
-            newLine[targetIdx] = current
-            if (targetIdx !== line.indexOf(current)) lineMoved = true
+        // If current is an obstacle block, place it at current index directly without merging
+        if (current.isObstacle) {
+          while (targetIdx < size && newLine[targetIdx] !== null) {
             targetIdx++
-            continue
           }
-
-          // Check for merge with next tile in filtered line
-          if (
-            i + 1 < filtered.length &&
-            !filtered[i + 1].isObstacle &&
-            filtered[i + 1].value === current.value
-          ) {
-            const mergedVal = current.value * 2
-            scoreGained += mergedVal
-            mergeCount++
-            if (mergedVal > maxMergedVal) maxMergedVal = mergedVal
-
-            newLine[targetIdx] = {
-              id: Math.random().toString(),
-              value: mergedVal,
-              row: 0,
-              col: 0,
-              isMerged: true
-            }
-            lineMoved = true
-            i++ // Skip merged tile
-          } else {
-            newLine[targetIdx] = { ...current }
-            if (targetIdx !== line.indexOf(current)) lineMoved = true
-          }
+          newLine[targetIdx] = current
+          if (targetIdx !== line.indexOf(current)) lineMoved = true
           targetIdx++
+          continue
         }
 
-        // Return sliced line
-        return { newLine, lineMoved }
+        // Check for merge with next tile in filtered line
+        if (
+          i + 1 < filtered.length &&
+          !filtered[i + 1].isObstacle &&
+          filtered[i + 1].value === current.value
+        ) {
+          const mergedVal = current.value * 2
+          scoreGained += mergedVal
+          mergeCount++
+          if (mergedVal > maxMergedVal) maxMergedVal = mergedVal
+
+          newLine[targetIdx] = {
+            id: Math.random().toString(),
+            value: mergedVal,
+            row: 0,
+            col: 0,
+            isMerged: true
+          }
+          lineMoved = true
+          i++ // Skip merged tile
+        } else {
+          newLine[targetIdx] = { ...current }
+          if (targetIdx !== line.indexOf(current)) lineMoved = true
+        }
+        targetIdx++
       }
 
-      // Process directional line extractions
-      if (direction === "left") {
-        for (let r = 0; r < size; r++) {
-          const { newLine, lineMoved } = slideLine(newBoard[r])
-          if (lineMoved) moved = true
-          for (let c = 0; c < size; c++) {
-            if (newLine[c]) {
-              newLine[c]!.row = r
-              newLine[c]!.col = c
-            }
-            newBoard[r][c] = newLine[c]
-          }
-        }
-      } else if (direction === "right") {
-        for (let r = 0; r < size; r++) {
-          const line = [...newBoard[r]].reverse()
-          const { newLine, lineMoved } = slideLine(line)
-          if (lineMoved) moved = true
-          newLine.reverse()
-          for (let c = 0; c < size; c++) {
-            if (newLine[c]) {
-              newLine[c]!.row = r
-              newLine[c]!.col = c
-            }
-            newBoard[r][c] = newLine[c]
-          }
-        }
-      } else if (direction === "up") {
+      // Return sliced line
+      return { newLine, lineMoved }
+    }
+
+    // Process directional line extractions
+    if (direction === "left") {
+      for (let r = 0; r < size; r++) {
+        const { newLine, lineMoved } = slideLine(newBoard[r])
+        if (lineMoved) moved = true
         for (let c = 0; c < size; c++) {
-          const line = newBoard.map((row) => row[c])
-          const { newLine, lineMoved } = slideLine(line)
-          if (lineMoved) moved = true
-          for (let r = 0; r < size; r++) {
-            if (newLine[r]) {
-              newLine[r]!.row = r
-              newLine[r]!.col = c
-            }
-            newBoard[r][c] = newLine[r]
+          if (newLine[c]) {
+            newLine[c]!.row = r
+            newLine[c]!.col = c
           }
+          newBoard[r][c] = newLine[c]
         }
-      } else if (direction === "down") {
+      }
+    } else if (direction === "right") {
+      for (let r = 0; r < size; r++) {
+        const line = [...newBoard[r]].reverse()
+        const { newLine, lineMoved } = slideLine(line)
+        if (lineMoved) moved = true
+        newLine.reverse()
         for (let c = 0; c < size; c++) {
-          const line = newBoard.map((row) => row[c]).reverse()
-          const { newLine, lineMoved } = slideLine(line)
-          if (lineMoved) moved = true
-          newLine.reverse()
-          for (let r = 0; r < size; r++) {
-            if (newLine[r]) {
-              newLine[r]!.row = r
-              newLine[r]!.col = c
-            }
-            newBoard[r][c] = newLine[r]
+          if (newLine[c]) {
+            newLine[c]!.row = r
+            newLine[c]!.col = c
           }
+          newBoard[r][c] = newLine[c]
         }
       }
-
-      if (!moved) return prevBoard // No state change if tiles didn't move
-
-      // Save History stack (max 5 snapshots)
-      setHistory((prev) => [snapshot, ...prev.slice(0, 4)])
-      setMoveCount((prev) => prev + 1)
-
-      // Handle Obstacle Decay in Obstacle Mode
-      if (mode === "obstacle") {
+    } else if (direction === "up") {
+      for (let c = 0; c < size; c++) {
+        const line = newBoard.map((row) => row[c])
+        const { newLine, lineMoved } = slideLine(line)
+        if (lineMoved) moved = true
         for (let r = 0; r < size; r++) {
-          for (let c = 0; c < size; c++) {
-            const tile = newBoard[r][c]
-            if (tile && tile.isObstacle) {
-              const remaining = (tile.obstacleTimer || 5) - 1
-              if (remaining <= 0) {
-                newBoard[r][c] = null // Obstacle broke!
-                addFloatingText("OBSTACLE SHATTERED!", 150, 150, "#f97316")
-              } else {
-                tile.obstacleTimer = remaining
-              }
-            }
+          if (newLine[r]) {
+            newLine[r]!.row = r
+            newLine[r]!.col = c
           }
+          newBoard[r][c] = newLine[r]
         }
       }
+    } else if (direction === "down") {
+      for (let c = 0; c < size; c++) {
+        const line = newBoard.map((row) => row[c]).reverse()
+        const { newLine, lineMoved } = slideLine(line)
+        if (lineMoved) moved = true
+        newLine.reverse()
+        for (let r = 0; r < size; r++) {
+          if (newLine[r]) {
+            newLine[r]!.row = r
+            newLine[r]!.col = c
+          }
+          newBoard[r][c] = newLine[r]
+        }
+      }
+    }
 
-      // Add Random Tile
-      const emptyCells: [number, number][] = []
+    // No state change if tiles didn't move
+    if (!moved) return
+
+    // Handle Obstacle Decay in Obstacle Mode
+    if (mode === "obstacle") {
       for (let r = 0; r < size; r++) {
         for (let c = 0; c < size; c++) {
-          if (!newBoard[r][c]) {
-            emptyCells.push([r, c])
-          }
-        }
-      }
-
-      if (emptyCells.length > 0) {
-        const [r, c] = emptyCells[Math.floor(Math.random() * emptyCells.length)]
-        
-        // Spawn obstacle or standard tile
-        const spawnObstacle = mode === "obstacle" && Math.random() < 0.15
-        newBoard[r][c] = {
-          id: Math.random().toString(),
-          value: spawnObstacle ? -1 : Math.random() < 0.88 ? 2 : 4,
-          row: r,
-          col: c,
-          isNew: true,
-          isObstacle: spawnObstacle,
-          obstacleTimer: spawnObstacle ? 5 : undefined
-        }
-      }
-
-      // Audio & Visual Effects
-      if (mergeCount > 1) {
-        setCombo((prev) => prev + 1)
-        playSound("combo")
-        addFloatingText(`${mergeCount}x MULTI-MERGE!`, 160, 80, "#a855f7")
-      } else if (maxMergedVal > 0) {
-        setCombo(0)
-        playSound("merge", maxMergedVal)
-        addFloatingText(`+${scoreGained}`, 180, 120, "#eab308")
-      } else {
-        playSound("slide")
-      }
-
-      // Speed mode time bonus on merge
-      if (mode === "speed" && mergeCount > 0) {
-        setTimeLeft((prev) => Math.min(99, prev + mergeCount * 2))
-      }
-
-      // Check Win Condition
-      const targetVal = MODES[mode].target
-      if (!gameWon && !keepPlaying) {
-        let reachedTarget = false
-        for (let r = 0; r < size; r++) {
-          for (let c = 0; c < size; c++) {
-            if (newBoard[r][c] && newBoard[r][c]!.value >= targetVal) {
-              reachedTarget = true
-              break
+          const tile = newBoard[r][c]
+          if (tile && tile.isObstacle) {
+            const remaining = (tile.obstacleTimer || 5) - 1
+            if (remaining <= 0) {
+              newBoard[r][c] = null // Obstacle broke!
+              addFloatingText("OBSTACLE SHATTERED!", 150, 150, "#f97316")
+            } else {
+              tile.obstacleTimer = remaining
             }
           }
         }
-        if (reachedTarget) {
-          setGameWon(true)
-          playSound("victory")
-          createParticles(200, 200, "#f59e0b")
+      }
+    }
+
+    // Add Random Tile
+    const emptyCells: [number, number][] = []
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (!newBoard[r][c]) {
+          emptyCells.push([r, c])
         }
       }
+    }
 
-      // Check Game Over Condition
-      if (!checkCanMove(newBoard, size)) {
-        setGameOver(true)
-        playSound("gameover")
+    if (emptyCells.length > 0) {
+      const [r, c] = emptyCells[Math.floor(Math.random() * emptyCells.length)]
+
+      // Spawn obstacle or standard tile
+      const spawnObstacle = mode === "obstacle" && Math.random() < 0.15
+      newBoard[r][c] = {
+        id: Math.random().toString(),
+        value: spawnObstacle ? -1 : Math.random() < 0.9 ? 2 : 4,
+        row: r,
+        col: c,
+        isNew: true,
+        isObstacle: spawnObstacle,
+        obstacleTimer: spawnObstacle ? 5 : undefined
       }
+    }
 
-      setScore((prev) => prev + scoreGained)
-      return newBoard
-    })
+    // Commit state updates once per successful move
+    setHistory((prev) => [snapshot, ...prev.slice(0, 4)])
+    setMoveCount((prev) => prev + 1)
+    setBoard(newBoard)
+    setScore((prev) => prev + scoreGained)
+
+    // Audio & Visual Effects
+    if (mergeCount > 1) {
+      setCombo((prev) => prev + 1)
+      playSound("combo")
+      addFloatingText(`${mergeCount}x MULTI-MERGE!`, 160, 80, "#a855f7")
+    } else if (maxMergedVal > 0) {
+      setCombo(0)
+      playSound("merge", maxMergedVal)
+      addFloatingText(`+${scoreGained}`, 180, 120, "#eab308")
+    } else {
+      playSound("slide")
+    }
+
+    // Speed mode time bonus on merge
+    if (mode === "speed" && mergeCount > 0) {
+      setTimeLeft((prev) => Math.min(99, prev + mergeCount * 2))
+    }
+
+    // Check Win Condition
+    const targetVal = MODES[mode].target
+    if (!gameWon && !keepPlaying) {
+      let reachedTarget = false
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          if (newBoard[r][c] && newBoard[r][c]!.value >= targetVal) {
+            reachedTarget = true
+            break
+          }
+        }
+      }
+      if (reachedTarget) {
+        setGameWon(true)
+        playSound("victory")
+        createParticles(200, 200, "#f59e0b")
+      }
+    }
+
+    // Check Game Over Condition
+    if (!checkCanMove(newBoard, size)) {
+      setGameOver(true)
+      playSound("gameover")
+    }
   }, [
-    gameOver, 
-    gameWon, 
-    keepPlaying, 
-    isHammerActive, 
-    isUpgradeActive, 
-    gridSize, 
-    score, 
-    mode, 
-    playSound, 
-    addFloatingText, 
+    board,
+    gameOver,
+    gameWon,
+    keepPlaying,
+    isHammerActive,
+    isUpgradeActive,
+    gridSize,
+    score,
+    moveCount,
+    combo,
+    timeLeft,
+    mode,
+    playSound,
+    addFloatingText,
     createParticles
   ])
 
   // Keyboard Event Listeners
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "w", "a", "s", "d", "W", "A", "S", "D"].includes(e.key)) {
+      // Only swallow movement keys while a round is actually running
+      const isRoundActive = !gameOver && !(gameWon && !keepPlaying)
+      if (
+        isRoundActive &&
+        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "w", "a", "s", "d", "W", "A", "S", "D"].includes(e.key)
+      ) {
         e.preventDefault()
       }
 
@@ -761,6 +776,9 @@ export default function Puzzle2048Game({ onBack, themeColor = "#f59e0b" }: Puzzl
     const [previous, ...rest] = history
     setBoard(previous.board)
     setScore(previous.score)
+    setMoveCount(previous.moveCount)
+    setCombo(previous.combo)
+    setTimeLeft(previous.timeLeft)
     setHistory(rest)
     setGameOver(false)
     playSound("powerup")
@@ -1267,6 +1285,7 @@ export default function Puzzle2048Game({ onBack, themeColor = "#f59e0b" }: Puzzl
           <div />
           <Button
             onClick={() => handleMove("up")}
+            aria-label="Move up"
             variant="outline"
             size="icon"
             className="bg-slate-900/80 border-slate-700/80 hover:bg-slate-800 text-amber-400 rounded-xl h-10 w-full"
@@ -1276,6 +1295,7 @@ export default function Puzzle2048Game({ onBack, themeColor = "#f59e0b" }: Puzzl
           <div />
           <Button
             onClick={() => handleMove("left")}
+            aria-label="Move left"
             variant="outline"
             size="icon"
             className="bg-slate-900/80 border-slate-700/80 hover:bg-slate-800 text-amber-400 rounded-xl h-10 w-full"
@@ -1284,6 +1304,7 @@ export default function Puzzle2048Game({ onBack, themeColor = "#f59e0b" }: Puzzl
           </Button>
           <Button
             onClick={() => handleMove("down")}
+            aria-label="Move down"
             variant="outline"
             size="icon"
             className="bg-slate-900/80 border-slate-700/80 hover:bg-slate-800 text-amber-400 rounded-xl h-10 w-full"
@@ -1292,6 +1313,7 @@ export default function Puzzle2048Game({ onBack, themeColor = "#f59e0b" }: Puzzl
           </Button>
           <Button
             onClick={() => handleMove("right")}
+            aria-label="Move right"
             variant="outline"
             size="icon"
             className="bg-slate-900/80 border-slate-700/80 hover:bg-slate-800 text-amber-400 rounded-xl h-10 w-full"

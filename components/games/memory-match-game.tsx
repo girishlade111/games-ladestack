@@ -458,6 +458,16 @@ class AudioSynth {
 
 const audioSynth = new AudioSynth()
 
+// Uniform Fisher-Yates shuffle (sort-with-random is biased)
+function shuffleArray<T>(arr: T[]): T[] {
+  const result = [...arr]
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}
+
 // ---------------------------------------------------------------------------
 // MAIN COMPONENT
 // ---------------------------------------------------------------------------
@@ -509,6 +519,33 @@ export default function MemoryMatchGame({ onBack }: MemoryMatchGameProps) {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const freezeTimerRef = useRef<NodeJS.Timeout | null>(null)
   const comboBannerTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
+  const peekIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Track delayed game-state timers so a restart can't race a pending resolution
+  const scheduleTimer = useCallback((fn: () => void, ms: number) => {
+    const id = setTimeout(() => {
+      timersRef.current.delete(id)
+      fn()
+    }, ms)
+    timersRef.current.add(id)
+  }, [])
+
+  const clearAllTimers = useCallback(() => {
+    timersRef.current.forEach((id) => clearTimeout(id))
+    timersRef.current.clear()
+    if (peekIntervalRef.current) {
+      clearInterval(peekIntervalRef.current)
+      peekIntervalRef.current = null
+    }
+  }, [])
+
+  // Unmount cleanup: kill any pending game-state timers/intervals
+  useEffect(() => {
+    return () => {
+      clearAllTimers()
+    }
+  }, [clearAllTimers])
 
   // Sync sound enable state with synth
   useEffect(() => {
@@ -557,6 +594,7 @@ export default function MemoryMatchGame({ onBack }: MemoryMatchGameProps) {
 
   // Initialize Game Board
   const initializeGame = useCallback(() => {
+    clearAllTimers()
     const diffConfig = DIFFICULTIES[difficulty]
     const themeConfig = THEMES[activeTheme]
 
@@ -591,9 +629,7 @@ export default function MemoryMatchGame({ onBack }: MemoryMatchGameProps) {
     })
 
     // Shuffle cards
-    cardList.sort(() => Math.random() - 0.5)
-
-    setCards(cardList)
+    setCards(shuffleArray(cardList))
     setFlippedCardIds([])
     setMatchedPairs(0)
     setMoves(0)
@@ -613,7 +649,7 @@ export default function MemoryMatchGame({ onBack }: MemoryMatchGameProps) {
     setScanPowerups(difficulty === "beginner" ? 3 : difficulty === "standard" ? 2 : 1)
     setMagnetPowerups(difficulty === "beginner" ? 2 : 1)
     setFreezePowerups(gameMode === "speed" ? 2 : 1)
-  }, [difficulty, activeTheme, gameMode])
+  }, [difficulty, activeTheme, gameMode, clearAllTimers])
 
   // Handle Start Button Click
   const handleStartGame = () => {
@@ -630,10 +666,14 @@ export default function MemoryMatchGame({ onBack }: MemoryMatchGameProps) {
       // Set all cards to peeking state
       setCards((prev) => prev.map((c) => ({ ...c, isPeeking: true })))
 
-      const peekInterval = setInterval(() => {
+      if (peekIntervalRef.current) clearInterval(peekIntervalRef.current)
+      peekIntervalRef.current = setInterval(() => {
         setPeekCountdown((prev) => {
           if (prev === null || prev <= 1) {
-            clearInterval(peekInterval)
+            if (peekIntervalRef.current) {
+              clearInterval(peekIntervalRef.current)
+              peekIntervalRef.current = null
+            }
             setCards((cList) => cList.map((c) => ({ ...c, isPeeking: false })))
             setIsLocked(false)
             return null
@@ -776,7 +816,7 @@ export default function MemoryMatchGame({ onBack }: MemoryMatchGameProps) {
           spawnParticles("+5s Bonus!", "#10b981")
         }
 
-        setTimeout(() => {
+        scheduleTimer(() => {
           setCards((prev) =>
             prev.map((c) => (c.id === firstId || c.id === cardId ? { ...c, isMatched: true, isFlipped: true } : c))
           )
@@ -797,7 +837,7 @@ export default function MemoryMatchGame({ onBack }: MemoryMatchGameProps) {
 
         const flipDelay = DIFFICULTIES[difficulty].flipDelay
 
-        setTimeout(() => {
+        scheduleTimer(() => {
           setCards((prev) => {
             const nextCards = prev.map((c) =>
               c.id === firstId || c.id === cardId ? { ...c, isFlipped: false } : c
@@ -810,9 +850,8 @@ export default function MemoryMatchGame({ onBack }: MemoryMatchGameProps) {
               // Extract unmatched cards and shuffle their positions
               const unmatched = nextCards.filter((c) => !c.isMatched)
               const matched = nextCards.filter((c) => c.isMatched)
-              unmatched.sort(() => Math.random() - 0.5)
 
-              return [...matched, ...unmatched]
+              return [...matched, ...shuffleArray(unmatched)]
             }
 
             return nextCards
@@ -839,7 +878,7 @@ export default function MemoryMatchGame({ onBack }: MemoryMatchGameProps) {
 
     setCards((prev) => prev.map((c) => (!c.isMatched ? { ...c, isPeeking: true } : c)))
 
-    setTimeout(() => {
+    scheduleTimer(() => {
       setCards((prev) => prev.map((c) => ({ ...c, isPeeking: false })))
       setIsLocked(false)
     }, 1500)
@@ -849,11 +888,16 @@ export default function MemoryMatchGame({ onBack }: MemoryMatchGameProps) {
   const handleUseMagnet = () => {
     if (magnetPowerups <= 0 || !isPlaying || isPaused || isLocked) return
 
-    // Find an unmatched pair
-    const unmatchedCards = cards.filter((c) => !c.isMatched)
-    if (unmatchedCards.length < 2) return
+    // Only consider fully hidden cards so already-flipped ones can't phantom-mismatch
+    const hiddenCards = cards.filter((c) => !c.isMatched && !flippedCardIds.includes(c.id))
+    const hiddenPairCounts = new Map<number, number>()
+    hiddenCards.forEach((c) => hiddenPairCounts.set(c.pairId, (hiddenPairCounts.get(c.pairId) ?? 0) + 1))
+    const availablePair = Array.from(hiddenPairCounts.entries()).find(([, count]) => count === 2)
 
-    const targetPairId = unmatchedCards[0].pairId
+    // Don't consume the charge if no complete hidden pair exists
+    if (!availablePair) return
+
+    const targetPairId = availablePair[0]
 
     setMagnetPowerups((prev) => prev - 1)
     setIsLocked(true)
@@ -865,7 +909,7 @@ export default function MemoryMatchGame({ onBack }: MemoryMatchGameProps) {
       prev.map((c) => (c.pairId === targetPairId ? { ...c, isHighlighted: true, isFlipped: true } : c))
     )
 
-    setTimeout(() => {
+    scheduleTimer(() => {
       setCards((prev) =>
         prev.map((c) => (c.pairId === targetPairId ? { ...c, isMatched: true, isHighlighted: false } : c))
       )
@@ -899,11 +943,10 @@ export default function MemoryMatchGame({ onBack }: MemoryMatchGameProps) {
     setCards((prev) => {
       const unmatched = prev.filter((c) => !c.isMatched)
       const matched = prev.filter((c) => c.isMatched)
-      unmatched.sort(() => Math.random() - 0.5)
-      return [...matched, ...unmatched]
+      return [...matched, ...shuffleArray(unmatched)]
     })
 
-    setTimeout(() => {
+    scheduleTimer(() => {
       setIsLocked(false)
     }, 400)
   }

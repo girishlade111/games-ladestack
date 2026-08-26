@@ -48,6 +48,7 @@ interface Player {
   trail: { x: number; y: number; alpha: number }[]
   dashCooldown: number
   isDashing: boolean
+  iFrames: number
 }
 
 interface Coin {
@@ -253,6 +254,7 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
     trail: [],
     dashCooldown: 0,
     isDashing: false,
+    iFrames: 0,
   })
 
   const coinsRef = useRef<Coin[]>([])
@@ -263,6 +265,8 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
   const floatingTextsRef = useRef<FloatingText[]>([])
   const comboTimerRef = useRef<number>(0)
   const cloudOffsetRef = useRef<number>(0)
+  const comboRef = useRef<number>(0)
+  const currentStageRef = useRef<number>(1)
 
   // Web Audio Synthesizer Functions
   const initAudio = useCallback(() => {
@@ -391,11 +395,28 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
   // Check achievements helper
   const unlockAchievement = useCallback((id: string) => {
     setAchievements((prev) => {
+      const target = prev.find((item) => item.id === id)
+      // Persist only when an unlock actually flips; skip redundant writes
+      if (!target || target.unlocked) return prev
       const updated = prev.map((item) => (item.id === id ? { ...item, unlocked: true } : item))
-      localStorage.setItem("coin_collector_achievements", JSON.stringify(updated))
+      try {
+        localStorage.setItem("coin_collector_achievements", JSON.stringify(updated))
+      } catch {
+        // Ignore storage errors
+      }
       return updated
     })
   }, [])
+
+  // Persist cumulative stats & milestone achievements (single write per actual change)
+  useEffect(() => {
+    try {
+      localStorage.setItem("coin_collector_user_stats", JSON.stringify(stats))
+    } catch {
+      // Ignore storage errors
+    }
+    if (stats.totalCoins >= 100) unlockAchievement("century")
+  }, [stats, unlockAchievement])
 
   // Create Floating Score Indicator
   const spawnFloatingText = useCallback((text: string, x: number, y: number, color = "#facc15") => {
@@ -629,12 +650,17 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
       keysRef.current.delete(e.key.toLowerCase())
     }
 
+    // Clear held keys on window blur to prevent drift after alt-tab
+    const handleBlur = () => keysRef.current.clear()
+
     window.addEventListener("keydown", handleKeyDown)
     window.addEventListener("keyup", handleKeyUp)
+    window.addEventListener("blur", handleBlur)
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
       window.removeEventListener("keyup", handleKeyUp)
+      window.removeEventListener("blur", handleBlur)
     }
   }, [gameState, playJumpSound, playSynthTone, spawnParticles])
 
@@ -649,14 +675,7 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
         }
 
         if (gameMode === "timed" || gameMode === "survival") {
-          setTimeLeft((prev) => {
-            if (prev <= 1) {
-              setGameState("gameOver")
-              playGameOverSound()
-              return 0
-            }
-            return prev - 1
-          })
+          setTimeLeft((prev) => Math.max(0, prev - 1))
         }
 
         // Active Power-up Decay
@@ -672,7 +691,15 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
     return () => {
       if (interval) clearInterval(interval)
     }
-  }, [gameState, gameMode, activePowerUps.freeze, playGameOverSound])
+  }, [gameState, gameMode, activePowerUps.freeze])
+
+  // Timer expiry triggers game over (side effect hoisted out of the ticking updater)
+  useEffect(() => {
+    if (gameState === "playing" && (gameMode === "timed" || gameMode === "survival") && timeLeft <= 0) {
+      setGameState("gameOver")
+      playGameOverSound()
+    }
+  }, [gameState, gameMode, timeLeft, playGameOverSound])
 
   // Main Canvas Render & Game Loop
   useEffect(() => {
@@ -719,6 +746,7 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
       const moveSpeed = activePowerUps.speed > 0 ? 7.5 : 5.2
 
       if (p.dashCooldown > 0) p.dashCooldown -= 1
+      if (p.iFrames > 0) p.iFrames -= 1
 
       // Horizontal Input
       if (keysRef.current.has("a") || keysRef.current.has("arrowleft")) {
@@ -775,12 +803,13 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
           p.y + p.height <= plat.y + 14 &&
           p.vy >= 0
         ) {
+          const wasAirborne = !p.onGround
           p.y = plat.y - p.height
           p.vy = 0
           p.onGround = true
           p.jumpCount = 0
 
-          if (!p.onGround) {
+          if (wasAirborne) {
             p.scaleX = 1.25
             p.scaleY = 0.75
           }
@@ -873,14 +902,8 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
           setCoinsCollected((prev) => prev + 1)
           unlockAchievement("first_coin")
 
-          // Update Stats
-          setStats((prev) => {
-            const newTotal = prev.totalCoins + 1
-            if (newTotal >= 100) unlockAchievement("century")
-            const updated = { ...prev, totalCoins: newTotal }
-            localStorage.setItem("coin_collector_user_stats", JSON.stringify(updated))
-            return updated
-          })
+          // Pure stats increment; persistence & milestones handled by the stats effect
+          setStats((prev) => ({ ...prev, totalCoins: prev.totalCoins + 1 }))
 
           // Survival Mode Time Addition
           if (gameMode === "survival") {
@@ -891,14 +914,12 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
             spawnFloatingText(`+${gainedVal}`, coin.x, coin.y - 10, coin.color)
           }
 
-          // Combo escalation
-          setCombo((prev) => {
-            const nextCombo = prev + 1
-            setMaxCombo((m) => Math.max(m, nextCombo))
-            if (nextCombo >= 10) unlockAchievement("combo_10")
-            playCoinSound(nextCombo)
-            return nextCombo
-          })
+          // Combo escalation (tracked via ref so side effects stay outside updaters)
+          comboRef.current += 1
+          setCombo(comboRef.current)
+          setMaxCombo((m) => Math.max(m, comboRef.current))
+          if (comboRef.current >= 10) unlockAchievement("combo_10")
+          playCoinSound(comboRef.current)
           comboTimerRef.current = 180 // 3 seconds at 60fps
 
           // Trigger Fever mode if rainbow coin collected
@@ -954,12 +975,11 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
       if (remainingCoins.length === 0) {
         generateLevelLayout()
         if (gameMode === "stage") {
-          setCurrentStage((prev) => {
-            const next = prev + 1
-            setStageGoal((g) => g + 15)
-            setGameState("stageClear")
-            return next
-          })
+          const nextStageNumber = currentStageRef.current + 1
+          currentStageRef.current = nextStageNumber
+          setCurrentStage(nextStageNumber)
+          setStageGoal((g) => g + 15)
+          setGameState("stageClear")
         }
       }
 
@@ -967,6 +987,7 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
       if (comboTimerRef.current > 0) {
         comboTimerRef.current -= 1
         if (comboTimerRef.current <= 0) {
+          comboRef.current = 0
           setCombo(0)
         }
       }
@@ -1026,12 +1047,13 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
             }
           }
 
-          // Hazard Collision Check with Player
+          // Hazard Collision Check with Player (iFrames gate repeat hits from sustained contact)
           if (
             p.x < haz.x + haz.width &&
             p.x + p.width > haz.x &&
             p.y < haz.y + haz.height &&
-            p.y + p.height > haz.y
+            p.y + p.height > haz.y &&
+            p.iFrames <= 0
           ) {
             if (activePowerUps.shield) {
               // Shield protects hit
@@ -1039,13 +1061,16 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
               playSynthTone(600, "sine", 0.2, 0.2, 0.01)
               spawnFloatingText("SHIELD BROKEN!", pCenterX, pCenterY - 20, "#f43f5e")
               p.vy = -8 // Knockback bounce
+              p.iFrames = 60
             } else {
               // Penalty
               playHazardHitSound()
               setScore((prev) => Math.max(0, prev - 30))
+              comboRef.current = 0
               setCombo(0)
               p.vy = -10 // Knockback
               p.vx = p.x < haz.x ? -10 : 10
+              p.iFrames = 60
               spawnFloatingText("-30 PTS", pCenterX, pCenterY - 20, "#ef4444")
               spawnParticles(pCenterX, pCenterY, 12, "#ef4444", "spark")
             }
@@ -1242,8 +1267,10 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
   const startGame = () => {
     setScore(0)
     setCoinsCollected(0)
+    comboRef.current = 0
     setCombo(0)
     setMaxCombo(0)
+    currentStageRef.current = 1
     setCurrentStage(1)
     setStageGoal(15)
     setTimeLeft(DIFFICULTY_CONFIG[difficulty].timeLimit)
@@ -1265,16 +1292,13 @@ export default function CoinCollectorGame({ onBack, themeColor = "#f59e0b" }: Co
       trail: [],
       dashCooldown: 0,
       isDashing: false,
+      iFrames: 0,
     }
 
     generateLevelLayout()
     setGameState("playing")
 
-    setStats((prev) => {
-      const updated = { ...prev, totalGames: prev.totalGames + 1 }
-      localStorage.setItem("coin_collector_user_stats", JSON.stringify(updated))
-      return updated
-    })
+    setStats((prev) => ({ ...prev, totalGames: prev.totalGames + 1 }))
   }
 
   // Next Stage Transition

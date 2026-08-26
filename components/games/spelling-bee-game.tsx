@@ -12,25 +12,25 @@ const PUZZLES: Array<{ center: string; outer: string[]; words: string[]; pangram
   {
     center: "t",
     outer: ["c", "a", "i", "n", "o", "l"],
-    words: ["action", "atonic", "cation", "coital", "notic", "tonal", "total", "tonic", "toil", "tail", "tali", "coat", "coil", "colt", "cost", "cant", "clot", "int", "into", "lion", "loin", "lint", "lilt", "loot", "riot", "taco", "talc", "toll", "tool", "tint", "titan", "octal", "oat", "tan", "ton", "tin", "tic", "cat", "act", "lot", "not", "nit", "ait", "oat"],
+    words: ["action", "atonic", "cation", "coital", "notic", "tonal", "total", "tonic", "toil", "tail", "tali", "coat", "coil", "colt", "cost", "cant", "clot", "int", "into", "lion", "loin", "lint", "lilt", "loot", "riot", "taco", "talc", "toll", "tool", "tint", "titan", "octal", "oat", "tan", "ton", "tin", "tic", "cat", "act", "lot", "not", "nit", "ait"],
     pangrams: ["catlion"],
   },
   {
     center: "r",
     outer: ["e", "a", "d", "i", "n", "g"],
-    words: ["reading", "gainer", "regina", "grader", "daring", "gradin", "danger", "garden", "gander", "grain", "grand", "grade", "grade", "range", "anger", "regna", "rider", "aider", "rain", "rang", "ring", "rind", "read", "rear", "rage", "rein", "ride", "dear", "dare", "gear", "near", "earn", "iron", "rid", "ran", "rag", "rid", "err", "ire", "are", "ear", "era"],
+    words: ["gainer", "regina", "grader", "daring", "gradin", "danger", "garden", "gander", "grain", "grand", "grade", "range", "anger", "regna", "rider", "aider", "rain", "rang", "ring", "rind", "read", "rear", "rage", "rein", "ride", "dear", "dare", "gear", "near", "earn", "iron", "rid", "ran", "rag", "err", "ire", "are", "ear", "era"],
     pangrams: ["reading", "grained"],
   },
   {
     center: "s",
     outer: ["t", "o", "n", "e", "l", "i"],
-    words: ["stolen", "listen", "silent", "enlist", "tinsel", "lesion", "insole", "eloins", "stone", "notes", "onset", "tones", "steno", "islet", "inlet", "stein", "tiles", "lines", "liens", "stole", "toles", "notes", "lense", "sonnet", "lens", "list", "silt", "slit", "tins", "nest", "nets", "sent", "site", "ties", "lest", "lets", "lost", "lots", "slot", "sole", "toes", "eons", "noes", "nose", "ones", "sin", "son", "set", "its", "sit", "tis", "sol", "ins"],
+    words: ["stolen", "listen", "silent", "enlist", "tinsel", "lesion", "insole", "eloins", "stone", "notes", "onset", "tones", "steno", "islet", "inlet", "stein", "tiles", "lines", "liens", "stole", "toles", "lense", "sonnet", "lens", "list", "silt", "slit", "tins", "nest", "nets", "sent", "site", "ties", "lest", "lets", "lost", "lots", "slot", "sole", "toes", "eons", "noes", "nose", "ones", "sin", "son", "set", "its", "sit", "tis", "sol", "ins"],
     pangrams: ["nostile", "instole"],
   },
   {
     center: "e",
     outer: ["p", "l", "a", "y", "r", "s"],
-    words: ["players", "parleys", "sparely", "parsley", "replays", "player", "replay", "pearly", "parley", "sleepy", "layers", "relays", "slayer", "splay", "spray", "relay", "layer", "early", "yeas", "years", "pears", "spear", "spare", "reaps", "pales", "leaps", "lapse", "pearl", "peal", "real", "earl", "sale", "seal", "leap", "pale", "pear", "reap", "rape", "year", "aery", "eyas", "prey", "pyre", "lyre", "yea", "yes", "sea", "ale", "ape", "are", "ear", "era", "lea", "pea", "per", "rye", "aye", "ley"],
+    words: ["player", "replay", "pearly", "parley", "sleepy", "layers", "relays", "slayer", "splay", "spray", "relay", "layer", "early", "yeas", "years", "pears", "spear", "spare", "reaps", "pales", "leaps", "lapse", "pearl", "peal", "real", "earl", "sale", "seal", "leap", "pale", "pear", "reap", "rape", "year", "aery", "eyas", "prey", "pyre", "lyre", "yea", "yes", "sea", "ale", "ape", "are", "ear", "era", "lea", "pea", "per", "rye", "aye", "ley"],
     pangrams: ["players", "parsley", "parleys", "replays", "sparely"],
   },
 ]
@@ -101,7 +101,7 @@ export default function SpellingBeeGame({ themeColor = "#ca8a04" }: { onBack?: (
     return () => window.removeEventListener("keydown", onKey)
   }, [phase, submit, addLetter, allLetters])
 
-  const total = puzzle.words.length + puzzle.pangrams.length
+  const total = new Set([...puzzle.words, ...puzzle.pangrams]).size
   const rank =
     score >= 60 ? "Genius" : score >= 40 ? "Amazing" : score >= 25 ? "Great" : score >= 12 ? "Good" : score >= 5 ? "Moving Up" : "Beginner"
 

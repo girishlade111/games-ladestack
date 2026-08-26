@@ -351,6 +351,8 @@ export default function SheepRunGame({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const gameLoopRef = useRef<number | null>(null)
+  const lastTickTimeRef = useRef<number>(0)
+  const displayedScoreRef = useRef(0)
 
   // Game UI state
   const [gameState, setGameState] = useState<"menu" | "playing" | "paused" | "gameOver">("menu")
@@ -587,6 +589,7 @@ export default function SheepRunGame({
     }
 
     setScore(0)
+    displayedScoreRef.current = 0
     setLives(cfg.lives)
     setCloversCollected(0)
     setActivePowerUps([])
@@ -635,7 +638,10 @@ export default function SheepRunGame({
       sheep.isDucking = false
       sheep.width = NORMAL_WIDTH
       sheep.height = NORMAL_HEIGHT
-      sheep.y = GROUND_Y - NORMAL_HEIGHT
+      // Only snap to ground when grounded; airborne falls naturally via gravity
+      if (sheep.onGround) {
+        sheep.y = GROUND_Y - NORMAL_HEIGHT
+      }
     }
   }, [])
 
@@ -1010,6 +1016,11 @@ export default function SheepRunGame({
     const sheep = eng.sheep
     const cfg = DIFFICULTY_SETTINGS[difficultyRef.current]
 
+    // Real frame delta (clamped) so time-based decay is refresh-rate independent
+    const now = performance.now()
+    const dtMs = lastTickTimeRef.current > 0 ? Math.min(50, now - lastTickTimeRef.current) : 0
+    lastTickTimeRef.current = now
+
     const hasSlowmo = eng.activePowerUps.some((p) => p.type === "slowmo")
     const speedMult = hasSlowmo ? 0.7 : 1.0
 
@@ -1020,7 +1031,13 @@ export default function SheepRunGame({
     const hasMultiplier = eng.activePowerUps.some((p) => p.type === "multiplier")
     const scoreAdd = (effectiveSpeed / 8) * (hasMultiplier ? 2 : 1)
     eng.score += scoreAdd
-    setScore(Math.floor(eng.score))
+
+    // Only push score to React when the integer value actually changes
+    const intScore = Math.floor(eng.score)
+    if (intScore !== displayedScoreRef.current) {
+      displayedScoreRef.current = intScore
+      setScore(intScore)
+    }
 
     const currentMilestone = Math.floor(eng.score / 500)
     if (currentMilestone > eng.lastMilestoneScore) {
@@ -1028,8 +1045,8 @@ export default function SheepRunGame({
       sfx.playMilestone()
     }
 
-    if (eng.activePowerUps.length > 0) {
-      eng.activePowerUps.forEach((p) => (p.duration -= 16.6))
+    if (eng.activePowerUps.length > 0 && dtMs > 0) {
+      eng.activePowerUps.forEach((p) => (p.duration -= dtMs))
       eng.activePowerUps = eng.activePowerUps.filter((p) => p.duration > 0)
       setActivePowerUps([...eng.activePowerUps])
     }
@@ -1226,6 +1243,8 @@ export default function SheepRunGame({
   // --- GAME LOOP RAF MANAGER ---
   useEffect(() => {
     if (gameState === "playing") {
+      // Re-baseline timing on start/resume so pause gaps don't count against durations
+      lastTickTimeRef.current = 0
       gameLoopRef.current = requestAnimationFrame(updateGame)
     }
     return () => {

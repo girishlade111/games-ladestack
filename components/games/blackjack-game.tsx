@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Play, RotateCcw } from "lucide-react"
@@ -15,7 +15,12 @@ const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
 function createDeck(): CardT[] {
   const deck: CardT[] = []
   for (const suit of SUITS) for (let r = 1; r <= 13; r++) deck.push({ suit, rank: r, faceUp: true })
-  return deck.sort(() => Math.random() - 0.5)
+  // Fisher-Yates (sort-with-random is biased)
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[deck[i], deck[j]] = [deck[j], deck[i]]
+  }
+  return deck
 }
 
 function cardValue(c: CardT): number { if (c.rank > 10) return 10; if (c.rank === 1) return 11; return c.rank }
@@ -36,21 +41,21 @@ export default function BlackjackGame({ themeColor = "#dc2626" }: { onBack?: () 
   const [bet, setBet] = useState(0)
   const [result, setResult] = useState("")
   const [stats, setStats] = useState({ wins: 0, losses: 0 })
+  // Stake captured at deal time; payouts use this even after bet resets to 0
+  const activeBetRef = useRef(0)
 
   const startGame = useCallback(() => {
+    if (bet <= 0) return
+    activeBetRef.current = bet
     const d = createDeck()
     const p = [d.pop()!, d.pop()!]
     const dl = [d.pop()!, { ...d.pop()!, faceUp: false }]
     setDeck(d); setPlayerHand(p); setDealerHand(dl); setPhase("playing"); setResult(""); setBet(0)
-  }, [])
+  }, [bet])
 
   const placeBet = useCallback((amount: number) => {
-    if (amount > balance) return
+    if (amount <= 0 || amount > balance) return
     setBet(amount); setBalance(b => b - amount)
-    const d = createDeck()
-    const p = [d.pop()!, d.pop()!]
-    const dl = [d.pop()!, { ...d.pop()!, faceUp: false }]
-    setDeck(d); setPlayerHand(p); setDealerHand(dl); setPhase("playing"); setResult("")
   }, [balance])
 
   const hit = useCallback(() => {
@@ -59,7 +64,7 @@ export default function BlackjackGame({ themeColor = "#dc2626" }: { onBack?: () 
     const v = handValue(p)
     if (v > 21) {
       setDealerHand(dh => dh.map(c => ({ ...c, faceUp: true })))
-      setPhase("over"); setResult("Bust! You lose.")
+      setPhase("over"); setResult("Bust! You lose."); setBet(0)
       setStats(s => ({ ...s, losses: s.losses + 1 }))
     }
     setDeck(d); setPlayerHand(p)
@@ -69,13 +74,14 @@ export default function BlackjackGame({ themeColor = "#dc2626" }: { onBack?: () 
     const d = [...deck]; let dl = dealerHand.map(c => ({ ...c, faceUp: true }))
     while (handValue(dl) < 17) dl.push(d.pop()!)
     setDealerHand(dl); setDeck(d); setPhase("stand")
+    const stake = activeBetRef.current
     const pv = handValue(playerHand); const dv = handValue(dl)
-    if (dv > 21) { setResult("Dealer busts! You win!"); setBalance(b => b + bet * 2); setStats(s => ({ ...s, wins: s.wins + 1 })) }
+    if (dv > 21) { setResult("Dealer busts! You win!"); setBalance(b => b + stake * 2); setStats(s => ({ ...s, wins: s.wins + 1 })) }
     else if (dv > pv) { setResult("Dealer wins!"); setStats(s => ({ ...s, losses: s.losses + 1 })) }
-    else if (pv > dv) { setResult("You win!"); setBalance(b => b + bet * 2); setStats(s => ({ ...s, wins: s.wins + 1 })) }
-    else { setResult("Push - tie!"); setBalance(b => b + bet) }
-    setPhase("over")
-  }, [dealerHand, playerHand, bet])
+    else if (pv > dv) { setResult("You win!"); setBalance(b => b + stake * 2); setStats(s => ({ ...s, wins: s.wins + 1 })) }
+    else { setResult("Push - tie!"); setBalance(b => b + stake) }
+    setPhase("over"); setBet(0); activeBetRef.current = 0
+  }, [dealerHand, playerHand, deck])
 
   const newRound = useCallback(() => { setPhase("menu") }, [])
 

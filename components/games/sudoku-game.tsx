@@ -452,7 +452,9 @@ export default function SudokuGame({
   onBack?: () => void
   themeColor?: string
 }) {
-  const [phase, setPhase] = useState<"menu" | "playing" | "finished" | "stats">("menu")
+  const [phase, setPhase] = useState<"menu" | "playing" | "failed" | "finished" | "stats">("menu")
+  const [isGenerating, setIsGenerating] = useState(false)
+  const generationLockRef = useRef(false)
   const [difficulty, setDifficulty] = useState<Difficulty>("easy")
   const [board, setBoard] = useState<BoardGrid>([])
   const [selected, setSelected] = useState<[number, number] | null>(null)
@@ -469,6 +471,7 @@ export default function SudokuGame({
 
   // Timer & State
   const [timer, setTimer] = useState(0)
+  const timerRef = useRef(0)
   const [isPaused, setIsPaused] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [stats, setStats] = useState<StatsMap>(DEFAULT_STATS)
@@ -521,7 +524,13 @@ export default function SudokuGame({
     return () => clearInterval(interval)
   }, [phase, isPaused])
 
-  // Save current game state to localStorage periodically
+  // Mirror timer into a ref so periodic saves don't depend on every tick
+  useEffect(() => {
+    timerRef.current = timer
+  }, [timer])
+
+  // Save current game state on meaningful changes (not every timer tick);
+  // history stacks are excluded to keep the payload small
   useEffect(() => {
     if (phase === "playing" && board.length > 0) {
       try {
@@ -529,17 +538,15 @@ export default function SudokuGame({
           difficulty,
           board,
           mistakes,
-          timer,
-          hintsUsed,
-          history,
-          historyIndex
+          timer: timerRef.current,
+          hintsUsed
         }
         localStorage.setItem(LOCAL_STORAGE_SAVED_GAME_KEY, JSON.stringify(payload))
         setHasSavedGame(true)
       } catch {
         // Ignore
       }
-    } else if (phase === "finished") {
+    } else if (phase === "finished" || phase === "failed") {
       try {
         localStorage.removeItem(LOCAL_STORAGE_SAVED_GAME_KEY)
         setHasSavedGame(false)
@@ -547,53 +554,62 @@ export default function SudokuGame({
         // Ignore
       }
     }
-  }, [phase, board, mistakes, timer, hintsUsed, difficulty, history, historyIndex])
+  }, [phase, board, mistakes, hintsUsed, difficulty])
 
   // ----------------------------------------------------
   // GAME INITIALIZATION
   // ----------------------------------------------------
   const startNewGame = useCallback((diff: Difficulty) => {
+    if (generationLockRef.current) return
+    generationLockRef.current = true
     setDifficulty(diff)
-    const { puzzle, solution } = generatePuzzle(DIFFICULTIES[diff].givens)
+    setIsGenerating(true)
 
-    const initialBoard: BoardGrid = puzzle.map((row, r) =>
-      row.map((val, c) => ({
-        row: r,
-        col: c,
-        value: val,
-        solution: solution[r][c],
-        isGiven: val !== 0,
-        notes: [],
-        isError: false
-      }))
-    )
+    // Defer puzzle generation so the "Generating..." state paints before the blocking work
+    setTimeout(() => {
+      const { puzzle, solution } = generatePuzzle(DIFFICULTIES[diff].givens)
 
-    setBoard(initialBoard)
-    setSelected(null)
-    setMistakes(0)
-    setHintsUsed(0)
-    setTimer(0)
-    setIsPaused(false)
-    setNoteMode(false)
-    setLockedDigit(null)
+      const initialBoard: BoardGrid = puzzle.map((row, r) =>
+        row.map((val, c) => ({
+          row: r,
+          col: c,
+          value: val,
+          solution: solution[r][c],
+          isGiven: val !== 0,
+          notes: [],
+          isError: false
+        }))
+      )
 
-    // Init history
-    setHistory([initialBoard])
-    setHistoryIndex(0)
-    setPhase("playing")
+      setBoard(initialBoard)
+      setSelected(null)
+      setMistakes(0)
+      setHintsUsed(0)
+      setTimer(0)
+      setIsPaused(false)
+      setNoteMode(false)
+      setLockedDigit(null)
 
-    // Update stats: gamesPlayed
-    setStats((prev) => {
-      const updated = {
-        ...prev,
-        [diff]: {
-          ...prev[diff],
-          gamesPlayed: prev[diff].gamesPlayed + 1
+      // Init history
+      setHistory([initialBoard])
+      setHistoryIndex(0)
+      setPhase("playing")
+      setIsGenerating(false)
+      generationLockRef.current = false
+
+      // Update stats: gamesPlayed
+      setStats((prev) => {
+        const updated = {
+          ...prev,
+          [diff]: {
+            ...prev[diff],
+            gamesPlayed: prev[diff].gamesPlayed + 1
+          }
         }
-      }
-      saveStats(updated)
-      return updated
-    })
+        saveStats(updated)
+        return updated
+      })
+    }, 30)
   }, [])
 
   const resumeSavedGame = () => {
@@ -603,14 +619,21 @@ export default function SudokuGame({
       const data = JSON.parse(savedStr)
       setDifficulty(data.difficulty || "easy")
       setBoard(data.board)
-      setMistakes(data.mistakes || 0)
+      const restoredMistakes = data.mistakes || 0
+      setMistakes(restoredMistakes)
       setTimer(data.timer || 0)
       setHintsUsed(data.hintsUsed || 0)
-      setHistory(data.history || [data.board])
-      setHistoryIndex(data.historyIndex ?? 0)
+      // New saves carry no history stack; fall back to the loaded board only
+      if (Array.isArray(data.history) && data.history.length > 0) {
+        setHistory(data.history)
+        setHistoryIndex(data.historyIndex ?? 0)
+      } else {
+        setHistory([data.board])
+        setHistoryIndex(0)
+      }
       setSelected(null)
       setIsPaused(false)
-      setPhase("playing")
+      setPhase(maxMistakes !== null && restoredMistakes >= maxMistakes ? "failed" : "playing")
     } catch {
       // Fallback if save is corrupt
       startNewGame("easy")
@@ -626,6 +649,7 @@ export default function SudokuGame({
   }
 
   const handleUndo = () => {
+    if (phase !== "playing") return
     if (historyIndex > 0) {
       sounds.playErase()
       const newIndex = historyIndex - 1
@@ -635,6 +659,7 @@ export default function SudokuGame({
   }
 
   const handleRedo = () => {
+    if (phase !== "playing") return
     if (historyIndex < history.length - 1) {
       sounds.playPlace(5)
       const newIndex = historyIndex + 1
@@ -754,6 +779,7 @@ export default function SudokuGame({
   // PLAYER ACTIONS (CELL / NUMBER PLACEMENT)
   // ----------------------------------------------------
   const handleCellSelect = (r: number, c: number) => {
+    if (phase !== "playing") return
     sounds.playSelect()
     setSelected([r, c])
 
@@ -764,6 +790,7 @@ export default function SudokuGame({
   }
 
   const applyDigitToCell = (r: number, c: number, digit: number) => {
+    if (phase !== "playing") return
     const targetCell = board[r][c]
     if (targetCell.isGiven) return
 
@@ -831,7 +858,9 @@ export default function SudokuGame({
         }
 
         if (maxMistakes !== null && newMistakes >= maxMistakes) {
-          // Game Over due to max mistakes
+          // Game Over due to max mistakes — enter a terminal phase so the
+          // timer stops and all input is blocked behind the overlay
+          setPhase("failed")
           // Reset streak
           setStats((prev) => {
             const updated = {
@@ -850,6 +879,7 @@ export default function SudokuGame({
   }
 
   const handleNumberInput = (digit: number) => {
+    if (phase !== "playing") return
     if (inputMode === "digit-first") {
       if (lockedDigit === digit) {
         setLockedDigit(null) // Toggle off digit lock
@@ -867,6 +897,7 @@ export default function SudokuGame({
   }
 
   const handleEraseCell = () => {
+    if (phase !== "playing") return
     if (!selected) return
     const [r, c] = selected
     const cell = board[r][c]
@@ -1093,6 +1124,14 @@ export default function SudokuGame({
         style={{ display: phase === "finished" ? "block" : "none" }}
       />
 
+      {/* Generating Puzzle Overlay */}
+      {isGenerating && (
+        <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+          <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+          <span className="text-sm font-semibold text-muted-foreground">Generating puzzle...</span>
+        </div>
+      )}
+
       {/* Header Bar */}
       <div className="w-full max-w-xl flex items-center justify-between mb-4 px-2">
         <div className="flex items-center gap-2">
@@ -1255,9 +1294,9 @@ export default function SudokuGame({
       )}
 
       {/* ----------------------------------------------------
-          PLAYING PHASE
+          PLAYING / FAILED PHASE
          ---------------------------------------------------- */}
-      {phase === "playing" && (
+      {(phase === "playing" || phase === "failed") && (
         <div className="w-full max-w-xl my-auto flex flex-col items-center gap-3">
           {/* Top Status & Controls Bar */}
           <div className="w-full flex items-center justify-between px-2 text-sm bg-card/60 border border-border/60 rounded-xl p-2.5 backdrop-blur-sm shadow-sm">
@@ -1352,7 +1391,10 @@ export default function SudokuGame({
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
-                    onClick={() => setMaxMistakes(null)}
+                    onClick={() => {
+                      setMaxMistakes(null)
+                      setPhase("playing")
+                    }}
                     size="sm"
                   >
                     Continue without limit

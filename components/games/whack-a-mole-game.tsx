@@ -136,6 +136,14 @@ const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
   },
 }
 
+// Full literal classes so Tailwind JIT keeps them (interpolated shadows get purged)
+const DIFFICULTY_GLOW: Record<Difficulty, string> = {
+  easy: "shadow-emerald-500/20",
+  medium: "shadow-amber-500/20",
+  hard: "shadow-rose-500/20",
+  insane: "shadow-purple-500/20",
+}
+
 export default function WhackAMoleGame({ onBack }: WhackAMoleGameProps) {
   const [gameState, setGameState] = useState<"menu" | "playing" | "gameOver">("menu")
   const [difficulty, setDifficulty] = useState<Difficulty>("medium")
@@ -182,6 +190,10 @@ export default function WhackAMoleGame({ onBack }: WhackAMoleGameProps) {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const particleLoopRef = useRef<number | null>(null)
   const boardRef = useRef<HTMLDivElement>(null)
+
+  // Refs mirroring state so interval callbacks avoid dep churn / stale reads
+  const scoreRef = useRef(0)
+  const molesRef = useRef<Mole[]>(moles)
 
   const config = DIFFICULTY_CONFIGS[difficulty]
 
@@ -333,18 +345,30 @@ export default function WhackAMoleGame({ onBack }: WhackAMoleGameProps) {
 
   // Load high scores
   useEffect(() => {
-    const easy = localStorage.getItem("whack-a-mole-best-easy")
-    const medium = localStorage.getItem("whack-a-mole-best-medium")
-    const hard = localStorage.getItem("whack-a-mole-best-hard")
-    const insane = localStorage.getItem("whack-a-mole-best-insane")
+    try {
+      const easy = localStorage.getItem("whack-a-mole-best-easy")
+      const medium = localStorage.getItem("whack-a-mole-best-medium")
+      const hard = localStorage.getItem("whack-a-mole-best-hard")
+      const insane = localStorage.getItem("whack-a-mole-best-insane")
 
-    setBestScores({
-      easy: easy ? parseInt(easy, 10) : 0,
-      medium: medium ? parseInt(medium, 10) : 0,
-      hard: hard ? parseInt(hard, 10) : 0,
-      insane: insane ? parseInt(insane, 10) : 0,
-    })
+      setBestScores({
+        easy: easy ? parseInt(easy, 10) : 0,
+        medium: medium ? parseInt(medium, 10) : 0,
+        hard: hard ? parseInt(hard, 10) : 0,
+        insane: insane ? parseInt(insane, 10) : 0,
+      })
+    } catch {
+      // Ignore storage errors
+    }
   }, [])
+
+  useEffect(() => {
+    scoreRef.current = score
+  }, [score])
+
+  useEffect(() => {
+    molesRef.current = moles
+  }, [moles])
 
   // Floating text emitter
   const addFloatingText = (text: string, x: number, y: number, color: string = "#facc15") => {
@@ -436,13 +460,7 @@ export default function WhackAMoleGame({ onBack }: WhackAMoleGameProps) {
     if (gameState !== "playing") return
 
     timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          endGame()
-          return 0
-        }
-        return prev - 1
-      })
+      setTimeLeft((prev) => Math.max(0, prev - 1))
     }, 1000)
 
     return () => {
@@ -462,13 +480,23 @@ export default function WhackAMoleGame({ onBack }: WhackAMoleGameProps) {
       if (finalScore > bestScores[difficulty]) {
         setBestScores((prev) => {
           const updated = { ...prev, [difficulty]: finalScore }
-          localStorage.setItem(`whack-a-mole-best-${difficulty}`, finalScore.toString())
+          try {
+            localStorage.setItem(`whack-a-mole-best-${difficulty}`, finalScore.toString())
+          } catch {
+            // Ignore storage errors
+          }
           return updated
         })
       }
       return finalScore
     })
   }
+
+  // Trigger game over once the clock hits zero (kept outside state updaters)
+  useEffect(() => {
+    if (gameState === "playing" && timeLeft === 0) endGame()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState, timeLeft])
 
   // Mole Spawner logic
   useEffect(() => {
@@ -510,7 +538,7 @@ export default function WhackAMoleGame({ onBack }: WhackAMoleGameProps) {
           }
         }
 
-        const duration = Math.max(config.hideDelay - Math.floor(score / 500) * 40, 450)
+        const duration = Math.max(config.hideDelay - Math.floor(scoreRef.current / 500) * 40, 450)
 
         const updated = [...prevMoles]
         updated[randomIndex] = {
@@ -532,7 +560,8 @@ export default function WhackAMoleGame({ onBack }: WhackAMoleGameProps) {
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current)
     }
-  }, [gameState, config, score])
+    // score read via scoreRef so whacks don't destroy/recreate this interval
+  }, [gameState, config])
 
   // Auto-hide mole timeout checker
   useEffect(() => {
@@ -540,18 +569,24 @@ export default function WhackAMoleGame({ onBack }: WhackAMoleGameProps) {
 
     const checkInterval = setInterval(() => {
       const now = Date.now()
+
+      // Count expirations from the ref snapshot; side effects stay out of the updater
+      const expiredCount = molesRef.current.filter(
+        (mole) =>
+          mole.isVisible && !mole.isHit && mole.type !== "bomb" && now - mole.spawnTime > mole.duration
+      ).length
+
+      if (expiredCount > 0) {
+        setMisses((m) => m + expiredCount)
+        setCombo(0) // streak broken on escape
+      }
+
       setMoles((prevMoles) =>
-        prevMoles.map((mole) => {
-          if (mole.isVisible && !mole.isHit && now - mole.spawnTime > mole.duration) {
-            // Mole escaped!
-            if (mole.type !== "bomb") {
-              setMisses((m) => m + 1)
-              setCombo(0) // streak broken on escape
-            }
-            return { ...mole, isVisible: false }
-          }
-          return mole
-        })
+        prevMoles.map((mole) =>
+          mole.isVisible && !mole.isHit && now - mole.spawnTime > mole.duration
+            ? { ...mole, isVisible: false }
+            : mole
+        )
       )
     }, 100)
 
@@ -736,7 +771,7 @@ export default function WhackAMoleGame({ onBack }: WhackAMoleGameProps) {
                     onClick={() => setDifficulty(key)}
                     className={`p-4 md:p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 flex flex-col justify-between gap-3 ${
                       isSelected
-                        ? `${cfg.borderColor} ${cfg.bgColor} shadow-lg shadow-${cfg.borderColor}/20 scale-[1.02]`
+                        ? `${cfg.borderColor} ${cfg.bgColor} shadow-lg ${DIFFICULTY_GLOW[key]} scale-[1.02]`
                         : "border-slate-800 bg-slate-800/40 hover:border-slate-700 hover:bg-slate-800/80"
                     }`}
                   >

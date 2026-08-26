@@ -280,6 +280,9 @@ export default function TypingSpeedGame({
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  // Mirrors of hot counters so the telemetry interval isn't torn down on every keystroke
+  const correctCharsRef = useRef(0)
+  const totalKeystrokesRef = useRef(0)
 
   // Theme styles dictionary
   const themeColors = useMemo(() => {
@@ -406,7 +409,18 @@ export default function TypingSpeedGame({
     saveResult(newResult)
   }, [elapsedSeconds, correctChars, totalKeystrokes, mode, timeConfig, wordConfig, difficulty, totalErrors, saveResult])
 
-  // Live Timer Loop
+  // Mirror hot state/callbacks into refs for the stable telemetry interval below
+  useEffect(() => {
+    correctCharsRef.current = correctChars
+    totalKeystrokesRef.current = totalKeystrokes
+  }, [correctChars, totalKeystrokes])
+
+  const finishGameRef = useRef(finishGame)
+  useEffect(() => {
+    finishGameRef.current = finishGame
+  }, [finishGame])
+
+  // Live Timer Loop (reads refs so deps stay stable)
   useEffect(() => {
     if (gameState !== "playing" || !startTime) return
 
@@ -416,9 +430,9 @@ export default function TypingSpeedGame({
       setElapsedSeconds(secs)
 
       // Calculate snapshot stats for telemetry line graph
-      const currentWpm = Math.round((correctChars / 5) / (secs / 60))
-      const currentRawWpm = Math.round((totalKeystrokes / 5) / (secs / 60))
-      const currentAcc = totalKeystrokes > 0 ? Math.round((correctChars / totalKeystrokes) * 100) : 100
+      const currentWpm = Math.round((correctCharsRef.current / 5) / (secs / 60))
+      const currentRawWpm = Math.round((totalKeystrokesRef.current / 5) / (secs / 60))
+      const currentAcc = totalKeystrokesRef.current > 0 ? Math.round((correctCharsRef.current / totalKeystrokesRef.current) * 100) : 100
 
       setWpmHistory((prev) => {
         if (prev.length > 0 && prev[prev.length - 1].time === secs) return prev
@@ -429,13 +443,13 @@ export default function TypingSpeedGame({
         const remaining = Math.max(0, timeConfig - secs)
         setTimeLeft(remaining)
         if (remaining <= 0) {
-          finishGame()
+          finishGameRef.current()
         }
       }
     }, 500)
 
     return () => clearInterval(timer)
-  }, [gameState, startTime, correctChars, totalKeystrokes, mode, timeConfig, finishGame])
+  }, [gameState, startTime, mode, timeConfig])
 
   // Handle Keystrokes & Typing Engine
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -483,16 +497,16 @@ export default function TypingSpeedGame({
     }
   }
 
-  // Handle Global Shortcuts (Tab + Enter or Esc to restart)
+  // Handle Global Shortcuts (Esc to restart — guarded so it can't start a game from menu)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        initGame()
-      }
+      if (e.key !== "Escape") return
+      if (gameState !== "playing" && gameState !== "finished") return
+      initGame()
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [initGame])
+  }, [initGame, gameState])
 
   // Current WPM / Acc computations for live rendering
   const liveDuration = elapsedSeconds > 0 ? elapsedSeconds : 1

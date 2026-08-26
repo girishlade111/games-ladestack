@@ -390,16 +390,15 @@ const scrambleString = (word: string): string => {
   if (word.length <= 1) return word
   const arr = word.split("")
   let scrambled = ""
-  let attempts = 0
-  
+
+  // Rejection sampling: identity chance for length > 1 is negligible, retry indefinitely
   do {
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
       ;[arr[i], arr[j]] = [arr[j], arr[i]]
     }
     scrambled = arr.join("")
-    attempts++
-  } while (scrambled === word && attempts < 15)
+  } while (scrambled === word)
 
   return scrambled
 }
@@ -436,6 +435,8 @@ export default function WordScrambleGame({ onBack, themeColor = "#8b5cf6" }: Wor
 
   // Confetti / FX Canvas
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  // Track pending next-word timeout so a new session can cancel it
+  const nextWordTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Load Saved Stats
   useEffect(() => {
@@ -454,6 +455,13 @@ export default function WordScrambleGame({ onBack, themeColor = "#8b5cf6" }: Wor
       }
     } catch {
       // Storage fallback
+    }
+  }, [])
+
+  // Clear pending next-word timer on unmount
+  useEffect(() => {
+    return () => {
+      if (nextWordTimeoutRef.current !== null) clearTimeout(nextWordTimeoutRef.current)
     }
   }, [])
 
@@ -581,6 +589,11 @@ export default function WordScrambleGame({ onBack, themeColor = "#8b5cf6" }: Wor
   // Start New Game Session
   const startGameSession = (selectedMode: GameMode, selectedLevel: number = 1) => {
     soundManager.playSound("click")
+    // Cancel any stale next-word transition from a previous session
+    if (nextWordTimeoutRef.current !== null) {
+      clearTimeout(nextWordTimeoutRef.current)
+      nextWordTimeoutRef.current = null
+    }
     setMode(selectedMode)
     setCurrentLevel(selectedLevel)
     setScore(0)
@@ -709,7 +722,7 @@ export default function WordScrambleGame({ onBack, themeColor = "#8b5cf6" }: Wor
       }
 
       // Next Word Transition
-      setTimeout(() => {
+      nextWordTimeoutRef.current = setTimeout(() => {
         setIsCorrectFlash(false)
         if (mode === "level") {
           const cfg = LEVEL_CONFIGS[currentLevel - 1]
@@ -767,9 +780,12 @@ export default function WordScrambleGame({ onBack, themeColor = "#8b5cf6" }: Wor
     if (!matchingTile) return
 
     const newPlaced = [...placedTiles]
+    // A displaced wrong tile must return to the pool or the round becomes unwinnable
+    const displacedTile = newPlaced[emptySlotIdx]
     newPlaced[emptySlotIdx] = matchingTile
     setPlacedTiles(newPlaced)
     setAvailableTiles((prev) => prev.filter((t) => t.id !== matchingTile!.id))
+    if (displacedTile) setAvailableTiles((prev) => [...prev, displacedTile])
 
     // Penalty of 10 score points for using reveal hint
     setScore((prev) => Math.max(0, prev - 10))
@@ -815,29 +831,33 @@ export default function WordScrambleGame({ onBack, themeColor = "#8b5cf6" }: Wor
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [gameState, currentWordData, availableTiles, placedTiles, handleSubmitWord])
 
-  // Timer Effect (Timed & Level Modes)
+  // Timer Effect (Timed & Level Modes) — single stable interval, no per-tick rebuild
   useEffect(() => {
     if (gameState !== "playing") return
     if (mode === "zen" || mode === "survival") return
 
-    if (timeLeft <= 0) {
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => Math.max(0, prev - 1))
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [gameState, mode])
+
+  // Expiry + last-10-seconds tick handled outside the updater (StrictMode-safe)
+  useEffect(() => {
+    if (gameState !== "playing") return
+    if (mode === "zen" || mode === "survival") return
+
+    if (timeLeft > 0 && timeLeft <= 10) {
+      soundManager.playSound("tick")
+    } else if (timeLeft <= 0) {
       soundManager.playSound("gameover")
       if (mode === "level") {
         setGameState("round_summary")
       } else {
         setGameState("game_over")
       }
-      return
     }
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 6 && prev > 1) soundManager.playSound("tick")
-        return prev - 1
-      })
-    }, 1000)
-
-    return () => clearInterval(timer)
   }, [gameState, timeLeft, mode])
 
   const currentHighScoreKey = `${mode}_${difficulty}_${category}`

@@ -654,28 +654,29 @@ export default function TicTacToeGame({ onBack }: TicTacToeGameProps) {
   // MINIMAX AI ALGORITHM & HEURISTICS
   // ----------------------------------------------------
   const evaluateBoardHeuristic = useCallback(
-    (b: CellValue[], bSize: BoardSize, varType: GameVariant): number => {
+    (b: CellValue[], bSize: BoardSize, varType: GameVariant, aiPlayer: PlayerSymbol): number => {
       const { winner: win } = checkWinnerOnBoard(b, bSize, varType)
-      if (win === "O") return 100
-      if (win === "X") return -100
+      if (win === aiPlayer) return 100
+      if (win !== null && win !== "tie") return -100
       if (win === "tie") return 0
 
-      // Heuristic evaluation for open threats
+      // Heuristic evaluation for open threats (positive favors aiPlayer)
+      const opponent: PlayerSymbol = aiPlayer === "X" ? "O" : "X"
       const lines = generateWinningLines(bSize)
       let score = 0
 
       for (const line of lines) {
-        let oCount = 0
-        let xCount = 0
+        let meCount = 0
+        let oppCount = 0
         for (const idx of line) {
-          if (b[idx] === "O") oCount++
-          else if (b[idx] === "X") xCount++
+          if (b[idx] === aiPlayer) meCount++
+          else if (b[idx] === opponent) oppCount++
         }
 
-        if (oCount > 0 && xCount === 0) {
-          score += Math.pow(10, oCount)
-        } else if (xCount > 0 && oCount === 0) {
-          score -= Math.pow(10, xCount)
+        if (meCount > 0 && oppCount === 0) {
+          score += Math.pow(10, meCount)
+        } else if (oppCount > 0 && meCount === 0) {
+          score -= Math.pow(10, oppCount)
         }
       }
 
@@ -693,14 +694,15 @@ export default function TicTacToeGame({ onBack }: TicTacToeGameProps) {
       alpha: number,
       beta: number,
       bSize: BoardSize,
-      varType: GameVariant
+      varType: GameVariant,
+      aiPlayer: PlayerSymbol
     ): number => {
       const { winner: win } = checkWinnerOnBoard(currentBoard, bSize, varType)
 
-      if (win === "O") return 100 - depth
-      if (win === "X") return depth - 100
+      if (win === aiPlayer) return 100 - depth
+      if (win !== null && win !== "tie") return depth - 100
       if (win === "tie") return 0
-      if (depth >= maxDepth) return evaluateBoardHeuristic(currentBoard, bSize, varType)
+      if (depth >= maxDepth) return evaluateBoardHeuristic(currentBoard, bSize, varType, aiPlayer)
 
       const n = getBoardDimension(bSize)
       const availableMoves: number[] = []
@@ -708,10 +710,11 @@ export default function TicTacToeGame({ onBack }: TicTacToeGameProps) {
         if (currentBoard[i] === null) availableMoves.push(i)
       }
 
+      // isMaximizing means it is aiPlayer's turn to place its own marker.
       if (isMaximizing) {
         let maxEval = -Infinity
         for (const move of availableMoves) {
-          currentBoard[move] = "O"
+          currentBoard[move] = aiPlayer
           const evalScore = minimax(
             currentBoard,
             depth + 1,
@@ -720,7 +723,8 @@ export default function TicTacToeGame({ onBack }: TicTacToeGameProps) {
             alpha,
             beta,
             bSize,
-            varType
+            varType,
+            aiPlayer
           )
           currentBoard[move] = null
           maxEval = Math.max(maxEval, evalScore)
@@ -729,9 +733,10 @@ export default function TicTacToeGame({ onBack }: TicTacToeGameProps) {
         }
         return maxEval
       } else {
+        const opponent: PlayerSymbol = aiPlayer === "X" ? "O" : "X"
         let minEval = Infinity
         for (const move of availableMoves) {
-          currentBoard[move] = "X"
+          currentBoard[move] = opponent
           const evalScore = minimax(
             currentBoard,
             depth + 1,
@@ -740,7 +745,8 @@ export default function TicTacToeGame({ onBack }: TicTacToeGameProps) {
             alpha,
             beta,
             bSize,
-            varType
+            varType,
+            aiPlayer
           )
           currentBoard[move] = null
           minEval = Math.min(minEval, evalScore)
@@ -829,7 +835,7 @@ export default function TicTacToeGame({ onBack }: TicTacToeGameProps) {
       if (bSize === "5x5") maxDepth = 3
       if (diff === "hard") maxDepth = Math.min(maxDepth, 3)
 
-      let bestScore = aiPlayer === "O" ? -Infinity : Infinity
+      let bestScore = -Infinity
       let bestMove = availableIndices[0]
 
       for (const idx of availableIndices) {
@@ -843,21 +849,20 @@ export default function TicTacToeGame({ onBack }: TicTacToeGameProps) {
         }
 
         tempBoard[idx] = aiPlayer
+        // After the tentative placement the opponent moves, so start minimizing.
         const score = minimax(
           tempBoard,
           0,
           maxDepth,
-          aiPlayer === "X",
+          false,
           -Infinity,
           Infinity,
           bSize,
-          varType
+          varType,
+          aiPlayer
         )
 
-        if (aiPlayer === "O" && score > bestScore) {
-          bestScore = score
-          bestMove = idx
-        } else if (aiPlayer === "X" && score < bestScore) {
+        if (score > bestScore) {
           bestScore = score
           bestMove = idx
         }
@@ -1024,30 +1029,33 @@ export default function TicTacToeGame({ onBack }: TicTacToeGameProps) {
     makeMove
   ])
 
-  // Turn Timer Effect
+  // Turn Timer Effect — the interval only decrements the clock.
   useEffect(() => {
     if (gameState !== "playing" || timerDuration === 0 || winner !== null || isThinking) return
 
     const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          // Time expired! Switch turn automatically or forfeit move randomly
-          const available: number[] = []
-          board.forEach((cell, idx) => {
-            if (cell === null) available.push(idx)
-          })
-          if (available.length > 0) {
-            const randomPick = available[Math.floor(Math.random() * available.length)]
-            makeMove(randomPick)
-          }
-          return timerDuration
-        }
-        return prev - 1
-      })
+      setTimeLeft((prev) => Math.max(0, prev - 1))
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [gameState, timerDuration, winner, isThinking, board, makeMove])
+  }, [gameState, timerDuration, winner, isThinking])
+
+  // Timeout handler — fires a random move once when the clock hits zero.
+  useEffect(() => {
+    if (gameState !== "playing" || timerDuration === 0 || winner !== null || isThinking) return
+    if (timeLeft !== 0) return
+
+    const available: number[] = []
+    board.forEach((cell, idx) => {
+      if (cell === null) available.push(idx)
+    })
+
+    if (available.length > 0) {
+      const randomPick = available[Math.floor(Math.random() * available.length)]
+      makeMove(randomPick)
+    }
+    // makeMove resets timeLeft to timerDuration (or ends the game), so this cannot fire twice.
+  }, [gameState, timerDuration, winner, timeLeft, isThinking, board, makeMove])
 
   // Strategic Hint Generator
   const generateHint = useCallback(() => {

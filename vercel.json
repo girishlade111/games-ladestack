@@ -32,11 +32,20 @@
       ]
     },
     {
-      "source": "/(favicon.ico|favicon.svg|icon-192.png|icon-512.png|apple-touch-icon.png|manifest.json)",
+      "source": "/(favicon.ico|favicon.svg|icon-192.png|icon-512.png|apple-touch-icon.png)",
       "headers": [
         {
           "key": "Cache-Control",
           "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/manifest.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
         }
       ]
     }
