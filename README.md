@@ -181,3 +181,7 @@ npm start
 ## License
 
 MIT
+
+---
+
+**Built by Girish Lade** — <https://ladestack.in>
